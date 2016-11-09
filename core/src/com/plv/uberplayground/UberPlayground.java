@@ -3,31 +3,27 @@ package com.plv.uberplayground;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.*;
+import com.badlogic.gdx.input.GestureDetector;
 
 public class UberPlayground extends ApplicationAdapter {
 	private SpriteBatch batch;
+	private OrthographicCamera camera;
 	private TextureAtlas textureAtlas;
 	private Animation animation;
 	private float elapsedTime = 0;
-	//private Sprite sprite;
-	//private int currentFrame = 1;
-	//private String currentAtlasKey = new String("0001");
 	
 	@Override
 	public void create () {
 		batch = new SpriteBatch();
+		camera = new OrthographicCamera(1280, 720);
 		textureAtlas = new TextureAtlas(Gdx.files.internal("agent/agent.pack"));
 
-		TextureRegion[] idleAnim = new TextureRegion[5];
+		animation = new Animation(1 / 30f, textureAtlas.getRegions());
 
-		idleAnim[0] = (textureAtlas.findRegion("0001"));
-		idleAnim[1] = (textureAtlas.findRegion("0002"));
-		idleAnim[2] = (textureAtlas.findRegion("0003"));
-		idleAnim[3] = (textureAtlas.findRegion("0004"));
-		idleAnim[4] = (textureAtlas.findRegion("0005"));
-
-		animation = new Animation(1 / 5f, idleAnim);
+		//Our Input Handler
+		Gdx.input.setInputProcessor(new GestureDetector(new InputHandler(camera)));
 	}
 
 
@@ -36,8 +32,8 @@ public class UberPlayground extends ApplicationAdapter {
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
-		//sprite.draw(batch);
 		elapsedTime += Gdx.graphics.getDeltaTime();
 		batch.draw(animation.getKeyFrame(elapsedTime, true), 0, 0);
 		batch.end();
