@@ -5,10 +5,8 @@ import com.badlogic.gdx.input.GestureDetector.GestureListener;
 import com.badlogic.gdx.math.Vector2;
 
 public class InputHandler implements GestureListener{
-    private OrthographicCamera camera;
 
-    InputHandler(OrthographicCamera camera){
-        this.camera = camera;
+    InputHandler(){
     }
 
     @Override
@@ -33,8 +31,6 @@ public class InputHandler implements GestureListener{
 
     @Override
     public boolean pan(float x, float y, float deltaX, float deltaY) {
-        camera.translate(deltaX,0);
-        camera.update();
         return false;
     }
 
