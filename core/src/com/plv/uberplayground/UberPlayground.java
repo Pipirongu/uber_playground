@@ -15,11 +15,13 @@ public class UberPlayground extends Game {
 	private Stage stage;
 	private World world;
 	private Box2DDebugRenderer debugRenderer;
+
+	final static float meters_per_pixels = 1/200.f;
 	//group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
 	@Override
 	public void create () {
-		this.stage = new Stage(new ExtendViewport(Gdx.graphics.getWidth(),Gdx.graphics.getHeight()));
+		this.stage = new Stage();
 		this.world = new World(new Vector2(), true);
 		this.debugRenderer = new Box2DDebugRenderer();
 
@@ -39,11 +41,12 @@ public class UberPlayground extends Game {
 
 	@Override
 	public void render () {
-		world.step(Gdx.graphics.getDeltaTime(), 6, 2);
+		this.world.step(Gdx.graphics.getDeltaTime(), 6, 2);
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+		this.stage.act(Gdx.graphics.getDeltaTime());
 		//batch.setProjectionMatrix(camera.combined);
 		//elapsedTime += Gdx.graphics.getDeltaTime();
 		this.debugRenderer.render(this.world, stage.getViewport().getCamera().combined);
@@ -52,7 +55,7 @@ public class UberPlayground extends Game {
 
 	@Override
 	public void resize(int width, int height) {
-		this.stage.getViewport().setCamera(new OrthographicCamera(width, height));
+		this.stage.getViewport().setCamera(new OrthographicCamera(width*meters_per_pixels, height*meters_per_pixels));
 	}
 
 	@Override
