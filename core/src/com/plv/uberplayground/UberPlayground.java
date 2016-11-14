@@ -9,14 +9,13 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 public class UberPlayground extends Game {
 	private Stage stage;
 	private World world;
 	private Box2DDebugRenderer debugRenderer;
 
-	final static float meters_per_pixels = 1/200.f;
+	final static float PPM = 200.f;
 	//group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
 	@Override
@@ -55,7 +54,7 @@ public class UberPlayground extends Game {
 
 	@Override
 	public void resize(int width, int height) {
-		this.stage.getViewport().setCamera(new OrthographicCamera(width*meters_per_pixels, height*meters_per_pixels));
+		this.stage.getViewport().setCamera(new OrthographicCamera(width/PPM, height/PPM));
 	}
 
 	@Override

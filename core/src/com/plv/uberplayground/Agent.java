@@ -2,7 +2,6 @@ package com.plv.uberplayground;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.*;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
@@ -16,7 +15,7 @@ public class Agent extends Actor {
     private World world;
     private Body body;
 
-    private final static float meters_per_pixels = 1/200.f;
+    private final static float PPM = 200.f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
     Agent(World world){
@@ -28,11 +27,11 @@ public class Agent extends Actor {
         //body def
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
-        bodyDef.position.set(this.getX()*meters_per_pixels, this.getY()*meters_per_pixels);
+        bodyDef.position.set(this.getX()/PPM, this.getY()/PPM);
 
         //body shape
         PolygonShape shape = new PolygonShape();
-        shape.setAsBox((this.textureAtlas.findRegion("0001").getRegionWidth()/2.f)*meters_per_pixels, (this.textureAtlas.findRegion("0001").getRegionHeight()/2.f)*meters_per_pixels);
+        shape.setAsBox((this.textureAtlas.findRegion("0001").getRegionWidth()/2.f)/PPM, (this.textureAtlas.findRegion("0001").getRegionHeight()/2.f)/PPM);
 
         //body fixture
         FixtureDef fixtureDef = new FixtureDef();
@@ -42,9 +41,9 @@ public class Agent extends Actor {
         this.body = this.world.createBody(bodyDef);
         this.body.createFixture(fixtureDef);
 
-        this.body.setLinearVelocity(0.f, 10*meters_per_pixels);
-        this.body.applyTorque(2*meters_per_pixels,true);
-        //this.body.setAngularVelocity(0.2f);
+        //this.body.setLinearVelocity(0.f, 10*meters_per_pixels);
+        //this.body.applyTorque(2*meters_per_pixels,true);
+        this.body.setAngularVelocity(0.5f);
         shape.dispose();
 
 
@@ -71,15 +70,15 @@ public class Agent extends Actor {
 
         //sprite and body have different origins, so we draw the animation at the right place
         batch.draw(animation.getKeyFrame(elapsedTime, true),
-                this.body.getPosition().x - ((this.textureRegion.getRegionWidth()/2.f)*meters_per_pixels),
-                this.body.getPosition().y - ((this.textureRegion.getRegionHeight()/2.f)*meters_per_pixels),
-                ((this.textureRegion.getRegionWidth()/2.f)*meters_per_pixels),
-                ((this.textureRegion.getRegionHeight()/2.f)*meters_per_pixels),
-                this.textureRegion.getRegionWidth()*meters_per_pixels,
-                this.textureRegion.getRegionHeight()*meters_per_pixels,
+                this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f)/PPM,
+                this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM,
+                (this.textureRegion.getRegionWidth()/2.f)/PPM,
+                (this.textureRegion.getRegionHeight()/2.f)/PPM,
+                this.textureRegion.getRegionWidth()/PPM,
+                this.textureRegion.getRegionHeight()/PPM,
                 1,
                 1,
-                MathUtils.radiansToDegrees * this.body.getAngle());
+                (float)Math.toDegrees(this.body.getAngle()));
 
     }
 
@@ -91,10 +90,10 @@ public class Agent extends Actor {
 
         for (int i = 0; i < this.pe.getEmitters().size; i++) { //get the list of emitters - things that emit particles
             ParticleEmitter current_emitter =  this.pe.getEmitters().get(i);
-            current_emitter.getAngle().setLowMin(this.emitter_angle.getLowMin() + (MathUtils.radiansToDegrees * this.body.getAngle())); //low is the minimum rotation
-            current_emitter.getAngle().setLowMax(this.emitter_angle.getLowMax() + (MathUtils.radiansToDegrees * this.body.getAngle()));
-            current_emitter.getAngle().setHighMin(this.emitter_angle.getHighMin() + (MathUtils.radiansToDegrees * this.body.getAngle()));
-            current_emitter.getAngle().setHighMax(this.emitter_angle.getHighMax() + (MathUtils.radiansToDegrees * this.body.getAngle())); //high is the max rotation
+            current_emitter.getAngle().setLowMin(this.emitter_angle.getLowMin() + (float)Math.toDegrees(this.body.getAngle())); //low is the minimum rotation
+            current_emitter.getAngle().setLowMax(this.emitter_angle.getLowMax() + (float)Math.toDegrees(this.body.getAngle()));
+            current_emitter.getAngle().setHighMin(this.emitter_angle.getHighMin() + (float)Math.toDegrees(this.body.getAngle()));
+            current_emitter.getAngle().setHighMax(this.emitter_angle.getHighMax() + (float)Math.toDegrees(this.body.getAngle())); //high is the max rotation
         }
         this.pe.update(delta);
         //this.pe.update(Gdx.graphics.getDeltaTime());
