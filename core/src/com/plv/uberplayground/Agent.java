@@ -18,7 +18,7 @@ public class Agent extends Actor {
     private final static float PPM = 200.f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
-    Agent(World world){
+    public Agent(World world){
         this.world = world;
         this.textureAtlas = new TextureAtlas(Gdx.files.internal("agent/agent.pack"));
         this.textureRegion = this.textureAtlas.findRegion("0001");
