@@ -6,7 +6,7 @@ import com.badlogic.gdx.math.Vector2;
 
 public class InputHandler implements GestureListener{
 
-    InputHandler(){
+    public InputHandler(){
     }
 
     @Override

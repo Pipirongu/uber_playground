@@ -1,6 +1,8 @@
 package com.plv.uberplayground.screens;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.input.GestureDetector;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
@@ -12,7 +14,7 @@ public class GameScreen extends AbstractScreen{
     private World world;
     private Box2DDebugRenderer debugRenderer;
 
-    final static float PPM = 200.f;
+    private final static float PPM = 200.f;
     //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
     public GameScreen() {
@@ -29,7 +31,7 @@ public class GameScreen extends AbstractScreen{
 		this.addActor(agent);
 
         //Our Input Handler
-        Gdx.input.setInputProcessor(new GestureDetector(new InputHandler()));
+        //Gdx.input.setInputProcessor(new GestureDetector(new InputHandler()));
     }
 
     @Override
@@ -39,22 +41,23 @@ public class GameScreen extends AbstractScreen{
 
     @Override
     public void render(float delta) {
-        super.render(delta);
-        //		this.world.step(Gdx.graphics.getDeltaTime(), 6, 2);
-//
-//		Gdx.gl.glClearColor(0, 0, 0, 1);
-//		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-//
-//		this.stage.act(Gdx.graphics.getDeltaTime());
-//		//batch.setProjectionMatrix(camera.combined);
-//		//elapsedTime += Gdx.graphics.getDeltaTime();
-//		this.debugRenderer.render(this.world, stage.getViewport().getCamera().combined);
-//		this.stage.draw();
+        this.world.step(delta, 6, 2);
+
+		Gdx.gl.glClearColor(0, 0, 0, 1);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+
+        // Calling to Stage methods
+        this.act(delta);
+        this.draw();
+
+        this.debugRenderer.render(this.world, this.getViewport().getCamera().combined);
     }
 
     @Override
     public void resize(int width, int height) {
-        super.resize(width, height);
+        //this.getViewport().update(width/PPM, height/PPM);
+        this.getViewport().setCamera(new OrthographicCamera(width/PPM, height/PPM));
     }
 
     @Override
