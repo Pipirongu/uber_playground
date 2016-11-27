@@ -15,7 +15,7 @@ public class Agent extends Actor {
     private World world;
     private Body body;
 
-    private final static float PPM = 200.f;
+    private final static float PPM = 64.f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
     public Agent(World world){

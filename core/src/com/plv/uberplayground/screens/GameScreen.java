@@ -1,34 +1,42 @@
 package com.plv.uberplayground.screens;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.input.GestureDetector;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.utils.viewport.FillViewport;
 import com.plv.uberplayground.Agent;
-import com.plv.uberplayground.InputHandler;
+import com.plv.uberplayground.UberPlayground;
 
-public class GameScreen extends AbstractScreen{
+public class GameScreen implements Screen {
     private World world;
     private Box2DDebugRenderer debugRenderer;
 
-    private final static float PPM = 200.f;
+    private final static float PPM = 700.f;
     //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
-    public GameScreen() {
-        super();
-    }
+    private Stage stage;
+    private final UberPlayground app;
 
-    @Override
-    public void buildStage() {
-		this.world = new World(new Vector2(), true);
-		this.debugRenderer = new Box2DDebugRenderer();
+    private static final int VIRTUAL_WIDTH = 1280;
+    private static final int VIRTUAL_HEIGHT = 720;
 
-		//add agent to stage
-		Agent agent = new Agent(this.world);
-		this.addActor(agent);
+    public GameScreen(final UberPlayground app) {
+        this.app = app;
+        this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.app.gameCamera));
+        Gdx.input.setInputProcessor(stage);
+
+        //
+        this.world = new World(new Vector2(), true);
+        this.debugRenderer = new Box2DDebugRenderer();
+
+        //add agent to stage
+        Agent agent = new Agent(this.world);
+        this.stage.addActor(agent);
 
         //Our Input Handler
         //Gdx.input.setInputProcessor(new GestureDetector(new InputHandler()));
@@ -36,7 +44,6 @@ public class GameScreen extends AbstractScreen{
 
     @Override
     public void show() {
-        super.show();
     }
 
     @Override
@@ -48,37 +55,39 @@ public class GameScreen extends AbstractScreen{
 
 
         // Calling to Stage methods
-        this.act(delta);
-        this.draw();
+        this.stage.act(delta);
+        this.stage.draw();
 
-        this.debugRenderer.render(this.world, this.getViewport().getCamera().combined);
+        this.debugRenderer.render(this.world, this.stage.getViewport().getCamera().combined);
     }
 
     @Override
     public void resize(int width, int height) {
         //this.getViewport().update(width/PPM, height/PPM);
-        this.getViewport().setCamera(new OrthographicCamera(width/PPM, height/PPM));
+        this.stage.getViewport().setCamera(new OrthographicCamera(16, 9));
+        //this.stage.getViewport().update(16, 9, false);
     }
 
     @Override
     public void pause() {
-        super.pause();
+
     }
 
     @Override
     public void resume() {
-        super.resume();
+
     }
 
     @Override
     public void hide() {
-        super.hide();
+
     }
+
 
     @Override
     public void dispose() {
-        super.dispose();
-//        this.stage.dispose();
-//		this.world.dispose();
+        this.debugRenderer.dispose();
+		this.world.dispose();
+        this.stage.dispose();
     }
 }

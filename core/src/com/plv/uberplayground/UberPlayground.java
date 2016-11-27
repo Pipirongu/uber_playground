@@ -1,21 +1,28 @@
 package com.plv.uberplayground;
 
 import com.badlogic.gdx.Game;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.plv.uberplayground.screens.MainMenuScreen;
-import com.plv.uberplayground.util.ScreenManager;
 
 public class UberPlayground extends Game {
+	public static final int VIRTUAL_WIDTH = 1280;
+	public static final int VIRTUAL_HEIGHT = 720;
+	public static final float ASPECT_RATIO = (float)VIRTUAL_WIDTH/(float)VIRTUAL_HEIGHT;
+	public OrthographicCamera mainMenuCamera;
+	public OrthographicCamera gameCamera;
+
 	@Override
 	public void create () {
-		ScreenManager.getInstance().initialize(this);
-		ScreenManager.getInstance().showScreen(new MainMenuScreen());
+		this.mainMenuCamera = new OrthographicCamera();
+		this.gameCamera = new OrthographicCamera();
+		this.mainMenuCamera.setToOrtho(false, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+		this.gameCamera.setToOrtho(false, 16, 9);
+		this.setScreen(new MainMenuScreen(this));
 	}
 
-//	@Override
-//	public void dispose () {
-//		this.stage.dispose();
-//		this.world.dispose();
-//	}
+	@Override
+	public void dispose () {
+	}
 //
 //	@Override
 //	public void render () {
