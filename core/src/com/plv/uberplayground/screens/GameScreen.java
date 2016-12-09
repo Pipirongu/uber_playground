@@ -16,7 +16,7 @@ public class GameScreen implements Screen {
     private World world;
     private Box2DDebugRenderer debugRenderer;
 
-    private final static float PPM = 700.f;
+    private final static float PPM = 200.f;
     //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
     private Stage stage;
@@ -64,7 +64,8 @@ public class GameScreen implements Screen {
     @Override
     public void resize(int width, int height) {
         //this.getViewport().update(width/PPM, height/PPM);
-        this.stage.getViewport().setCamera(new OrthographicCamera(16, 9));
+        //this.stage.getViewport().setCamera(this.app.gameCamera);
+        ((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,VIRTUAL_WIDTH/PPM, VIRTUAL_HEIGHT/PPM);
         //this.stage.getViewport().update(16, 9, false);
     }
 
