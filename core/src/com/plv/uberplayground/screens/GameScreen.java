@@ -22,12 +22,9 @@ public class GameScreen implements Screen {
     private Stage stage;
     private final UberPlayground app;
 
-    private static final int VIRTUAL_WIDTH = 1280;
-    private static final int VIRTUAL_HEIGHT = 720;
-
     public GameScreen(final UberPlayground app) {
         this.app = app;
-        this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.app.gameCamera));
+        this.stage = new Stage(new FillViewport(this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM, this.app.gameCamera));
         Gdx.input.setInputProcessor(stage);
 
         //
@@ -35,7 +32,7 @@ public class GameScreen implements Screen {
         this.debugRenderer = new Box2DDebugRenderer();
 
         //add agent to stage
-        Agent agent = new Agent(this.world);
+        Agent agent = new Agent(this.world, this.app);
         this.stage.addActor(agent);
 
         //Our Input Handler
@@ -65,7 +62,8 @@ public class GameScreen implements Screen {
     public void resize(int width, int height) {
         //this.getViewport().update(width/PPM, height/PPM);
         //this.stage.getViewport().setCamera(this.app.gameCamera);
-        ((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,VIRTUAL_WIDTH/PPM, VIRTUAL_HEIGHT/PPM);
+        ((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM);
+        //((OrthographicCamera)this.stage.getCamera()).translate((VIRTUAL_WIDTH/2)/PPM, (VIRTUAL_HEIGHT/2)/PPM);
         //this.stage.getViewport().update(16, 9, false);
     }
 

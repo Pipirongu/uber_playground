@@ -16,7 +16,7 @@ public class UberPlayground extends Game {
 		this.mainMenuCamera = new OrthographicCamera();
 		this.gameCamera = new OrthographicCamera();
 		this.mainMenuCamera.setToOrtho(false, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-		this.gameCamera.setToOrtho(false, 16, 9);
+		//this.gameCamera.setToOrtho(false, 16, 9);
 		this.setScreen(new MainMenuScreen(this));
 	}
 

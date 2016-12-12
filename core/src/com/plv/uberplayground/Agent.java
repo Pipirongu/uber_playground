@@ -14,12 +14,14 @@ public class Agent extends Actor {
 
     private World world;
     private Body body;
+    private final UberPlayground app;
 
-    private final static float PPM = 64.f;
+    private final static float PPM = 200.f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
-    public Agent(World world){
+    public Agent(World world, final UberPlayground app){
         this.world = world;
+        this.app = app;
         this.textureAtlas = new TextureAtlas(Gdx.files.internal("agent/agent.pack"));
         this.textureRegion = this.textureAtlas.findRegion("0001");
         this.animation = new Animation(1 / 30f, this.textureAtlas.getRegions());
@@ -27,7 +29,8 @@ public class Agent extends Actor {
         //body def
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
-        bodyDef.position.set(this.getX()/PPM, this.getY()/PPM);
+        float test = this.getX();
+        bodyDef.position.set((this.app.VIRTUAL_WIDTH/2)/PPM, (this.app.VIRTUAL_HEIGHT/2)/PPM);
 
         //body shape
         PolygonShape shape = new PolygonShape();
