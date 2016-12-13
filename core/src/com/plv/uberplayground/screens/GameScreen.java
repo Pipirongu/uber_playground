@@ -16,15 +16,23 @@ public class GameScreen implements Screen {
     private World world;
     private Box2DDebugRenderer debugRenderer;
 
-    private final static float PPM = 200.f;
+    private static final int VIRTUAL_WIDTH = 16;
+    private static final int VIRTUAL_HEIGHT = 9;
+
+    private OrthographicCamera mainCamera;
     //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
+    //UI menu in-game - dedicated stage for this
     private Stage stage;
+    //stage for actors, and also playfield to spawn 'targets'
     private final UberPlayground app;
 
     public GameScreen(final UberPlayground app) {
         this.app = app;
-        this.stage = new Stage(new FillViewport(this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM, this.app.gameCamera));
+        this.mainCamera = new OrthographicCamera();
+        this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+
+        //InputMultiplexer - UI stage first, then Actor/Playfield stage
         Gdx.input.setInputProcessor(stage);
 
         //
@@ -62,7 +70,7 @@ public class GameScreen implements Screen {
     public void resize(int width, int height) {
         //this.getViewport().update(width/PPM, height/PPM);
         //this.stage.getViewport().setCamera(this.app.gameCamera);
-        ((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM);
+        //((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM);
         //((OrthographicCamera)this.stage.getCamera()).translate((VIRTUAL_WIDTH/2)/PPM, (VIRTUAL_HEIGHT/2)/PPM);
         //this.stage.getViewport().update(16, 9, false);
     }

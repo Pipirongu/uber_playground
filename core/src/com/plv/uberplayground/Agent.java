@@ -16,7 +16,9 @@ public class Agent extends Actor {
     private Body body;
     private final UberPlayground app;
 
-    private final static float PPM = 200.f;
+    private static final int VIRTUAL_WIDTH = 16;
+    private static final int VIRTUAL_HEIGHT = 9;
+    private final static float PPM = 64.f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
     public Agent(World world, final UberPlayground app){
@@ -30,7 +32,7 @@ public class Agent extends Actor {
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
         float test = this.getX();
-        bodyDef.position.set((this.app.VIRTUAL_WIDTH/2)/PPM, (this.app.VIRTUAL_HEIGHT/2)/PPM);
+        bodyDef.position.set(VIRTUAL_WIDTH/2, VIRTUAL_HEIGHT/2);
 
         //body shape
         PolygonShape shape = new PolygonShape();
