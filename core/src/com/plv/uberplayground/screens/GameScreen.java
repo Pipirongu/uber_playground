@@ -49,14 +49,14 @@ public class GameScreen implements Screen {
         this.hud.addActor(agent);
 
         //add inputlisteners for stage/actor
-        this.hud.addListener(new HudListener()); //add listeners for buttons
-        this.scene.addListener(new SceneListener());
-        this.agent.addListener(new AgentListener());
+        this.hud.addListener(new HudListener(this.world)); //add listeners for buttons
+        //this.scene.addListener(new SceneListener());
+        this.agent.addListener(new AgentListener(this.world));
 
         //InputMultiplexer - UI stage first, then Actor/Playfield stage
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(this.hud);
-        multiplexer.addProcessor(this.scene);
+        //multiplexer.addProcessor(this.scene);
         Gdx.input.setInputProcessor(multiplexer);
     }
 
@@ -74,8 +74,8 @@ public class GameScreen implements Screen {
 
         // Calling to Stage methods
         this.scene.act(delta);
-        this.scene.draw();
         this.hud.act(delta);
+        this.scene.draw();
         this.hud.draw();
 
         this.debugRenderer.render(this.world, this.scene.getViewport().getCamera().combined);
