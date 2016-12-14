@@ -1,9 +1,10 @@
-package com.plv.uberplayground;
+package com.plv.uberplayground.actors;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.plv.uberplayground.UberPlayground;
 
 public class Agent extends Actor {
     private TextureRegion textureRegion;
@@ -18,7 +19,7 @@ public class Agent extends Actor {
 
     private static final int VIRTUAL_WIDTH = 16;
     private static final int VIRTUAL_HEIGHT = 9;
-    private final static float PPM = 64.f;
+    private final static float PPM = 32f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
     public Agent(World world, final UberPlayground app){
@@ -27,11 +28,11 @@ public class Agent extends Actor {
         this.textureAtlas = new TextureAtlas(Gdx.files.internal("agent/agent.pack"));
         this.textureRegion = this.textureAtlas.findRegion("0001");
         this.animation = new Animation(1 / 30f, this.textureAtlas.getRegions());
+        this.setBounds(VIRTUAL_WIDTH/2, VIRTUAL_HEIGHT/2, this.textureAtlas.findRegion("0001").getRegionWidth()/PPM, this.textureAtlas.findRegion("0001").getRegionHeight()/PPM);
 
         //body def
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
-        float test = this.getX();
         bodyDef.position.set(VIRTUAL_WIDTH/2, VIRTUAL_HEIGHT/2);
 
         //body shape
@@ -46,7 +47,7 @@ public class Agent extends Actor {
         this.body = this.world.createBody(bodyDef);
         this.body.createFixture(fixtureDef);
 
-        //this.body.setLinearVelocity(0.f, 10*meters_per_pixels);
+        this.body.setLinearVelocity(0.f, 0.1f);
         //this.body.applyTorque(2*meters_per_pixels,true);
         this.body.setAngularVelocity(0.5f);
         shape.dispose();
@@ -92,6 +93,10 @@ public class Agent extends Actor {
         super.act(delta);
 
         this.pe.setPosition(this.body.getPosition().x, this.body.getPosition().y);
+        //this.setRotation((float)Math.toDegrees(this.body.getAngle()));
+        //this.setPosition(this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f), this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM);
+        this.setBounds(this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f), this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM, this.textureAtlas.findRegion("0001").getRegionWidth()/PPM, this.textureAtlas.findRegion("0001").getRegionHeight()/PPM);
+
 
         for (int i = 0; i < this.pe.getEmitters().size; i++) { //get the list of emitters - things that emit particles
             ParticleEmitter current_emitter =  this.pe.getEmitters().get(i);
