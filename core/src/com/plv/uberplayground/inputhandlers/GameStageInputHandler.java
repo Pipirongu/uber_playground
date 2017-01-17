@@ -1,4 +1,4 @@
-package com.plv.uberplayground.inputlisteners;
+package com.plv.uberplayground.inputhandlers;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector3;
@@ -9,13 +9,13 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 
-public class HudListener extends InputListener {
+public class GameStageInputHandler extends InputListener {
     private World world;
     private Vector3 point = new Vector3();
-    // Ask the world for bodies within the bounding box.
+    // used to store the body which collides with touch point
     private Body bodyThatWasHit = null;
 
-    public HudListener(final World world){
+    public GameStageInputHandler(final World world){
         this.world = world;
     }
 
@@ -38,18 +38,21 @@ public class HudListener extends InputListener {
         float someOffset = 0.1f;
         world.QueryAABB(callback, point.x - someOffset, point.y - someOffset, point.x + someOffset, point.y + someOffset);
 
+        //Collision return true to not  handle further events
         if(bodyThatWasHit != null) {
-            Gdx.app.log("HUDAgent: ", "Touch Down!");
+            Gdx.app.log("GameStage: ", "Body Found!");
             bodyThatWasHit = null;
             return true;
+        }else{
+            Gdx.app.log("GameStage: ", "Spawn a Unit!");
+            return true;
         }
-
-        return false;
     }
 
     @Override
     public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
-        Gdx.app.log("HUDAgent: ", "Touch Released!");
+        //check bodyThatWasHit, use it and set it to null else spawn unit
+        Gdx.app.log("GameStage: ", "Handle Body/Unit!");
     }
 
 }

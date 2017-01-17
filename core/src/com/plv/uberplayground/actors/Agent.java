@@ -75,7 +75,7 @@ public class Agent extends Actor {
 
 
         //sprite and body have different origins, so we draw the animation at the right place
-        batch.draw(animation.getKeyFrame(elapsedTime, true),
+        batch.draw((TextureRegion)animation.getKeyFrame(elapsedTime, true),
                 this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f)/PPM,
                 this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM,
                 (this.textureRegion.getRegionWidth()/2.f)/PPM,

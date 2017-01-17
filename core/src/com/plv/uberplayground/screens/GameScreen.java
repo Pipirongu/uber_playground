@@ -12,9 +12,9 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FillViewport;
 import com.plv.uberplayground.actors.Agent;
 import com.plv.uberplayground.UberPlayground;
-import com.plv.uberplayground.inputlisteners.AgentListener;
-import com.plv.uberplayground.inputlisteners.HudListener;
-import com.plv.uberplayground.inputlisteners.SceneListener;
+import com.plv.uberplayground.inputhandlers.AgentListener;
+import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
+import com.plv.uberplayground.inputhandlers.HudStageInputHandler;
 
 public class GameScreen implements Screen {
     private World world;
@@ -27,36 +27,36 @@ public class GameScreen implements Screen {
     //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
 
     //UI menu in-game - different VIRTUAL_WIDTH/VIRTUAL_HEIGHT
-    private Stage hud;
+    private Stage hudStage;
     //stage for actors, and also playfield to spawn 'targets'
-    private Stage scene;
+    private Stage gameStage;
     private Agent agent;
     private final UberPlayground app;
 
     public GameScreen(final UberPlayground app) {
         this.app = app;
         this.mainCamera = new OrthographicCamera();
-        this.hud = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
-        this.scene = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+        this.hudStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+        this.gameStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
 
         this.world = new World(new Vector2(), true);
         this.debugRenderer = new Box2DDebugRenderer();
 
+        //create agents
+        this.agent = new Agent(this.world, this.app);
+
         //add button actors to hud
+        //this.hudStage.addListener(new HudStageInputHandler());
+        //this.hudStage.addActor(agent);
 
         //add agent to scene
-        this.agent = new Agent(this.world, this.app);
-        this.hud.addActor(agent);
+        this.gameStage.addListener(new GameStageInputHandler(this.world));
+        this.gameStage.addActor(agent);
 
-        //add inputlisteners for stage/actor
-        this.hud.addListener(new HudListener(this.world)); //add listeners for buttons
-        //this.scene.addListener(new SceneListener());
-        this.agent.addListener(new AgentListener(this.world));
-
-        //InputMultiplexer - UI stage first, then Actor/Playfield stage
+        //InputMultiplexer - HUD stage first, then Actor/Game stage
         InputMultiplexer multiplexer = new InputMultiplexer();
-        multiplexer.addProcessor(this.hud);
-        //multiplexer.addProcessor(this.scene);
+        multiplexer.addProcessor(this.hudStage);
+        multiplexer.addProcessor(this.gameStage);
         Gdx.input.setInputProcessor(multiplexer);
     }
 
@@ -72,13 +72,15 @@ public class GameScreen implements Screen {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
 
-        // Calling to Stage methods
-        this.scene.act(delta);
-        this.hud.act(delta);
-        this.scene.draw();
-        this.hud.draw();
+		//TODO
+        // Calling to Stage methods - order?
+        this.hudStage.act(delta);
+        this.gameStage.act(delta);
 
-        this.debugRenderer.render(this.world, this.scene.getViewport().getCamera().combined);
+        this.hudStage.draw();
+        this.gameStage.draw();
+
+        this.debugRenderer.render(this.world, this.gameStage.getViewport().getCamera().combined);
     }
 
     @Override
@@ -110,6 +112,6 @@ public class GameScreen implements Screen {
     public void dispose() {
         this.debugRenderer.dispose();
 		this.world.dispose();
-        this.scene.dispose();
+        this.gameStage.dispose();
     }
 }
