@@ -8,15 +8,19 @@ import com.badlogic.gdx.physics.box2d.QueryCallback;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.plv.uberplayground.actors.Agent;
 
 public class GameStageInputHandler extends InputListener {
     private World world;
+    private Stage gameStage;
     private Vector3 point = new Vector3();
     // used to store the body which collides with touch point
     private Body bodyThatWasHit = null;
 
-    public GameStageInputHandler(final World world){
+    public GameStageInputHandler(final World world, final Stage gameStage){
         this.world = world;
+        this.gameStage = gameStage;
     }
 
     @Override
@@ -39,9 +43,8 @@ public class GameStageInputHandler extends InputListener {
         world.QueryAABB(callback, point.x - someOffset, point.y - someOffset, point.x + someOffset, point.y + someOffset);
 
         //Collision return true to not  handle further events
-        if(bodyThatWasHit != null) {
+        if(this.bodyThatWasHit != null) {
             Gdx.app.log("GameStage: ", "Body Found!");
-            bodyThatWasHit = null;
             return true;
         }else{
             Gdx.app.log("GameStage: ", "Spawn a Unit!");
@@ -52,7 +55,17 @@ public class GameStageInputHandler extends InputListener {
     @Override
     public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
         //check bodyThatWasHit, use it and set it to null else spawn unit
-        Gdx.app.log("GameStage: ", "Handle Body/Unit!");
+        if(this.bodyThatWasHit != null){
+            //do something
+            this.bodyThatWasHit.setLinearVelocity(0.f,this.bodyThatWasHit.getLinearVelocity().y+0.1f);
+            this.bodyThatWasHit = null;
+            Gdx.app.log("GameStage: ", "Handle Body");
+        }else{
+            //spawn someting
+            Agent spawnUnit = new Agent(this.world,this.point.x,this.point.y);
+            this.gameStage.addActor(spawnUnit);
+            Gdx.app.log("GameStage: ", "Handle Unit");
+        }
     }
 
 }

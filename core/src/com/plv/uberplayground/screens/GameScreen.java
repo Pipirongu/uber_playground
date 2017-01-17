@@ -43,15 +43,16 @@ public class GameScreen implements Screen {
         this.debugRenderer = new Box2DDebugRenderer();
 
         //create agents
-        this.agent = new Agent(this.world, this.app);
+        this.agent = new Agent(this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2);
+        this.agent.setLinearVelocity(0.f, 0.1f);
 
         //add button actors to hud
         //this.hudStage.addListener(new HudStageInputHandler());
         //this.hudStage.addActor(agent);
 
         //add agent to scene
-        this.gameStage.addListener(new GameStageInputHandler(this.world));
-        this.gameStage.addActor(agent);
+        this.gameStage.addListener(new GameStageInputHandler(this.world, this.gameStage));
+        this.gameStage.addActor(this.agent);
 
         //InputMultiplexer - HUD stage first, then Actor/Game stage
         InputMultiplexer multiplexer = new InputMultiplexer();

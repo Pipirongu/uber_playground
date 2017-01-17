@@ -2,6 +2,7 @@ package com.plv.uberplayground.actors;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.*;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.plv.uberplayground.UberPlayground;
@@ -15,16 +16,16 @@ public class Agent extends Actor {
 
     private World world;
     private Body body;
-    private final UberPlayground app;
+    //private final UberPlayground app;
 
     private static final int VIRTUAL_WIDTH = 16;
     private static final int VIRTUAL_HEIGHT = 9;
     private final static float PPM = 32f;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
 
-    public Agent(World world, final UberPlayground app){
+    public Agent(World world, float x, float y){
         this.world = world;
-        this.app = app;
+        //this.app = app;
         this.textureAtlas = new TextureAtlas(Gdx.files.internal("agent/agent.pack"));
         this.textureRegion = this.textureAtlas.findRegion("0001");
         this.animation = new Animation(1 / 30f, this.textureAtlas.getRegions());
@@ -33,7 +34,7 @@ public class Agent extends Actor {
         //body def
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
-        bodyDef.position.set(VIRTUAL_WIDTH/2, VIRTUAL_HEIGHT/2);
+        bodyDef.position.set(x, y);
 
         //body shape
         PolygonShape shape = new PolygonShape();
@@ -47,9 +48,9 @@ public class Agent extends Actor {
         this.body = this.world.createBody(bodyDef);
         this.body.createFixture(fixtureDef);
 
-        this.body.setLinearVelocity(0.f, 0.1f);
+        //this.body.setLinearVelocity(0.f, 0.1f);
         //this.body.applyTorque(2*meters_per_pixels,true);
-        this.body.setAngularVelocity(0.5f);
+        //this.body.setAngularVelocity(0.5f);
         shape.dispose();
 
 
@@ -109,5 +110,11 @@ public class Agent extends Actor {
         //this.pe.update(Gdx.graphics.getDeltaTime());
     }
 
+    public void setLinearVelocity(float vX, float vY) {
+        this.body.setLinearVelocity(vX, vY);
+    }
 
+    public Vector2 getLinearVelocity(){
+        return this.body.getLinearVelocity();
+    }
 }
