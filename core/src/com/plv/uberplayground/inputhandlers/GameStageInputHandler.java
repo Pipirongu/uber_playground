@@ -9,7 +9,7 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.plv.uberplayground.actors.Agent;
+import com.plv.uberplayground.actors.AnimatedPhysicsActor;
 
 public class GameStageInputHandler extends InputListener {
     private World world;
@@ -62,7 +62,7 @@ public class GameStageInputHandler extends InputListener {
             Gdx.app.log("GameStage: ", "Handle Body");
         }else{
             //spawn someting
-            Agent spawnUnit = new Agent(this.world,this.point.x,this.point.y);
+            AnimatedPhysicsActor spawnUnit = new AnimatedPhysicsActor("agent", this.world,this.point.x,this.point.y);
             this.gameStage.addActor(spawnUnit);
             Gdx.app.log("GameStage: ", "Handle Unit");
         }

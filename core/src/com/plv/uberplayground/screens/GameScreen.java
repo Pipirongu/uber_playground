@@ -10,11 +10,9 @@ import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FillViewport;
-import com.plv.uberplayground.actors.Agent;
+import com.plv.uberplayground.actors.AnimatedPhysicsActor;
 import com.plv.uberplayground.UberPlayground;
-import com.plv.uberplayground.inputhandlers.AgentListener;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
-import com.plv.uberplayground.inputhandlers.HudStageInputHandler;
 
 public class GameScreen implements Screen {
     private World world;
@@ -30,7 +28,7 @@ public class GameScreen implements Screen {
     private Stage hudStage;
     //stage for actors, and also playfield to spawn 'targets'
     private Stage gameStage;
-    private Agent agent;
+    private AnimatedPhysicsActor agent;
     private final UberPlayground app;
 
     public GameScreen(final UberPlayground app) {
@@ -43,7 +41,8 @@ public class GameScreen implements Screen {
         this.debugRenderer = new Box2DDebugRenderer();
 
         //create agents
-        this.agent = new Agent(this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2);
+        this.agent = new AnimatedPhysicsActor("agent",this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2);
+        this.agent.setParticleEmitter("exhaust",0.f,0.f,true,true);
         this.agent.setLinearVelocity(0.f, 0.1f);
 
         //add button actors to hud
