@@ -41,7 +41,8 @@ public class GameScreen implements Screen {
         this.debugRenderer = new Box2DDebugRenderer();
 
         //create agents
-        this.agent = new AnimatedPhysicsActor("agent",this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2);
+        this.agent = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.PLAYER,"agent", this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2,5,2);
+        this.agent.setIdleAnimFrameDuration(0.05f);
         this.agent.setParticleEmitter("exhaust",0.f,0.f,true,true);
         this.agent.setLinearVelocity(0.f, 0.1f);
 

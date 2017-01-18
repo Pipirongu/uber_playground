@@ -1,22 +1,24 @@
 package com.plv.uberplayground.actors;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
 public class AnimatedPhysicsActor extends Actor {
-    private TextureRegion textureRegion;
-    private TextureAtlas textureAtlas;
-    private Animation animation;
+    private Animation<TextureRegion> idleAnimation; // Must declare frame type (TextureRegion)
+    private int textureWidth;
+    private int textureHeight;
+
     private ParticleEffect pe = null;
     private ParticleEmitter.ScaledNumericValue emitter_angle;
     private float particlesOffsetX = 0.f;
     private float particlesOffsetY = 0.f;
     private Boolean isParticlesActorRotated = false;
-    private float elapsedTime = 0;
 
+    private float elapsedTime = 0;
     private World world;
     private Body body;
 
@@ -24,11 +26,40 @@ public class AnimatedPhysicsActor extends Actor {
     private static final int VIRTUAL_HEIGHT = 9;
     private final static float PPM = 32f;
 
-    public AnimatedPhysicsActor(String animationName, World world, float x, float y){
+    public enum ActorType {
+        PLAYER,
+        SPAWNUNIT
+    }
+    private ActorType actorType;
+
+    public AnimatedPhysicsActor(ActorType actorType, String animationName, World world, float x, float y, int frameCols, int frameRows){
         this.world = world;
-        this.textureAtlas = new TextureAtlas(Gdx.files.internal("agent/"+animationName+".pack"));
-        this.textureRegion = this.textureAtlas.findRegion("0001");
-        this.animation = new Animation(1 / 30f, this.textureAtlas.getRegions());
+        this.actorType = actorType;
+
+        // Load the sprite sheet as a Texture
+        Texture idleSheet;
+        idleSheet = new Texture(Gdx.files.internal("actors/"+animationName+".png"));
+        // Use the split utility method to create a 2D array of TextureRegions. This is
+        // possible because this sprite sheet contains frames of equal size and they are
+        // all aligned.
+        this.textureWidth = idleSheet.getWidth() / frameCols;
+        this.textureHeight = idleSheet.getHeight() / frameRows;
+        TextureRegion[][] tmp = TextureRegion.split(idleSheet,
+                this.textureWidth,
+                this.textureHeight);
+
+        // Place the regions into a 1D array in the correct order, starting from the top
+        // left, going across first. The Animation constructor requires a 1D array.
+        TextureRegion[] idleFrames = new TextureRegion[frameCols * frameRows];
+        int index = 0;
+        for (int i = 0; i < frameRows; i++) {
+            for (int j = 0; j < frameCols; j++) {
+                idleFrames[index++] = tmp[i][j];
+            }
+        }
+
+        // Initialize the Animation with the frame interval and array of frames
+        this.idleAnimation = new Animation<TextureRegion>(1/30f, idleFrames);
         //this.setBounds(VIRTUAL_WIDTH/2, VIRTUAL_HEIGHT/2, this.textureAtlas.findRegion("0001").getRegionWidth()/PPM, this.textureAtlas.findRegion("0001").getRegionHeight()/PPM);
 
         //body def
@@ -38,7 +69,7 @@ public class AnimatedPhysicsActor extends Actor {
 
         //body shape
         PolygonShape shape = new PolygonShape();
-        shape.setAsBox((this.textureAtlas.findRegion("0001").getRegionWidth()/2.f)/PPM, (this.textureAtlas.findRegion("0001").getRegionHeight()/2.f)/PPM);
+        shape.setAsBox((this.textureWidth/2.f)/PPM, (this.textureHeight/2.f)/PPM);
 
         //body fixture
         FixtureDef fixtureDef = new FixtureDef();
@@ -47,6 +78,7 @@ public class AnimatedPhysicsActor extends Actor {
 
         this.body = this.world.createBody(bodyDef);
         this.body.createFixture(fixtureDef);
+        this.body.setUserData(this);
 
         //this.body.setLinearVelocity(0.f, 0.1f);
         //this.body.applyTorque(2*meters_per_pixels,true);
@@ -66,13 +98,13 @@ public class AnimatedPhysicsActor extends Actor {
 
 
         //sprite and body have different origins, so we draw the animation at the right place
-        batch.draw((TextureRegion)animation.getKeyFrame(elapsedTime, true),
-                this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f)/PPM,
-                this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM,
-                (this.textureRegion.getRegionWidth()/2.f)/PPM,
-                (this.textureRegion.getRegionHeight()/2.f)/PPM,
-                this.textureRegion.getRegionWidth()/PPM,
-                this.textureRegion.getRegionHeight()/PPM,
+        batch.draw(this.idleAnimation.getKeyFrame(elapsedTime, true),
+                this.body.getPosition().x - (this.textureWidth/2.f)/PPM,
+                this.body.getPosition().y - (this.textureHeight/2.f)/PPM,
+                (this.textureWidth/2.f)/PPM,
+                (this.textureHeight/2.f)/PPM,
+                this.textureWidth/PPM,
+                this.textureHeight/PPM,
                 1,
                 1,
                 (float)Math.toDegrees(this.body.getAngle()));
@@ -100,7 +132,6 @@ public class AnimatedPhysicsActor extends Actor {
             }
             this.pe.update(delta);
         }
-        //this.pe.update(Gdx.graphics.getDeltaTime());
     }
 
     public void setParticleEmitter(String particlesName, float offsetX, float offsetY, boolean isParticlesActorRotated, boolean isAutoStart) {
@@ -123,5 +154,13 @@ public class AnimatedPhysicsActor extends Actor {
 
     public Vector2 getLinearVelocity(){
         return this.body.getLinearVelocity();
+    }
+
+    public void setIdleAnimFrameDuration(float frameDuration) {
+        this.idleAnimation.setFrameDuration(frameDuration);
+    }
+
+    public ActorType getActorType() {
+        return this.actorType;
     }
 }

@@ -56,13 +56,17 @@ public class GameStageInputHandler extends InputListener {
     public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
         //check bodyThatWasHit, use it and set it to null else spawn unit
         if(this.bodyThatWasHit != null){
-            //do something
-            this.bodyThatWasHit.setLinearVelocity(0.f,this.bodyThatWasHit.getLinearVelocity().y+0.1f);
+            AnimatedPhysicsActor actor = (AnimatedPhysicsActor)this.bodyThatWasHit.getUserData();
+            if(actor.getActorType() == AnimatedPhysicsActor.ActorType.SPAWNUNIT) {
+                this.bodyThatWasHit.setLinearVelocity(0.f, this.bodyThatWasHit.getLinearVelocity().y + 0.1f);
+            }
+
             this.bodyThatWasHit = null;
             Gdx.app.log("GameStage: ", "Handle Body");
         }else{
             //spawn someting
-            AnimatedPhysicsActor spawnUnit = new AnimatedPhysicsActor("agent", this.world,this.point.x,this.point.y);
+            AnimatedPhysicsActor spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT,"spawn_unit", this.world,this.point.x,this.point.y, 2,2);
+            spawnUnit.setIdleAnimFrameDuration(0.1f);
             this.gameStage.addActor(spawnUnit);
             Gdx.app.log("GameStage: ", "Handle Unit");
         }
