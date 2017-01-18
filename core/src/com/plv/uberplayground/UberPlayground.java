@@ -6,9 +6,20 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.plv.uberplayground.screens.MainMenuScreen;
 
+//TODO
+/*
+* spawnUnit only one active - removed when user spawns new one
+** agent uses steering behavior to move in the direction of the spawnUnit
+**** hostileUnits are in the playfield - agent explodes(animation change) on collision, transition to gameOver state
+***** powerUps randomly spawns which doubles the points but has negative effects such as 2x speed on agent or changes the hostileUnits
+****** inGame HUD
+* <move this TODO>
+* */
+
 public class UberPlayground extends Game {
 	@Override
 	public void create () {
+		//TODO
         Gdx.app.setLogLevel(Application.LOG_DEBUG);
 		this.setScreen(new MainMenuScreen(this));
 	}
@@ -16,18 +27,4 @@ public class UberPlayground extends Game {
 	@Override
 	public void dispose () {
 	}
-//
-//	@Override
-//	public void render () {
-//		this.world.step(Gdx.graphics.getDeltaTime(), 6, 2);
-//
-//		Gdx.gl.glClearColor(0, 0, 0, 1);
-//		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-//
-//		this.stage.act(Gdx.graphics.getDeltaTime());
-//		//batch.setProjectionMatrix(camera.combined);
-//		//elapsedTime += Gdx.graphics.getDeltaTime();
-//		this.debugRenderer.render(this.world, stage.getViewport().getCamera().combined);
-//		this.stage.draw();
-//	}
 }

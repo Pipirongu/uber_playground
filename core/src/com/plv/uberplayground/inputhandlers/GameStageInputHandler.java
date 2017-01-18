@@ -54,7 +54,7 @@ public class GameStageInputHandler extends InputListener {
 
     @Override
     public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
-        //check bodyThatWasHit, use it and set it to null else spawn unit
+        //handle touching a certain unit
         if(this.bodyThatWasHit != null){
             AnimatedPhysicsActor actor = (AnimatedPhysicsActor)this.bodyThatWasHit.getUserData();
             if(actor.getActorType() == AnimatedPhysicsActor.ActorType.SPAWNUNIT) {

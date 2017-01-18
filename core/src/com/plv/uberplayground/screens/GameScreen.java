@@ -46,6 +46,7 @@ public class GameScreen implements Screen {
         this.agent.setParticleEmitter("exhaust",0.f,0.f,true,true);
         this.agent.setLinearVelocity(0.f, 0.1f);
 
+        //TODO
         //add button actors to hud
         //this.hudStage.addListener(new HudStageInputHandler());
         //this.hudStage.addActor(agent);
@@ -86,6 +87,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        //TODO
         //this.getViewport().update(width/PPM, height/PPM);
         //this.stage.getViewport().setCamera(this.app.gameCamera);
         //((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM);

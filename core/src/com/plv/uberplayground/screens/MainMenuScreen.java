@@ -69,6 +69,7 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        //TODO
         // calculate new viewport
         float aspectRatio = (float)width/(float)height;
         float scale = 1f;

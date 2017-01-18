@@ -22,6 +22,7 @@ public class AnimatedPhysicsActor extends Actor {
     private World world;
     private Body body;
 
+    //TODO - might need later
     private static final int VIRTUAL_WIDTH = 16;
     private static final int VIRTUAL_HEIGHT = 9;
     private final static float PPM = 32f;
@@ -117,8 +118,6 @@ public class AnimatedPhysicsActor extends Actor {
 
         if(this.pe != null) {
             this.pe.setPosition(this.body.getPosition().x + this.particlesOffsetX, this.body.getPosition().y + this.particlesOffsetY);
-            //this.setRotation((float)Math.toDegrees(this.body.getAngle()));
-            //this.setPosition(this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f), this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM);
             //this.setBounds(this.body.getPosition().x - (this.textureRegion.getRegionWidth()/2.f), this.body.getPosition().y - (this.textureRegion.getRegionHeight()/2.f)/PPM, this.textureAtlas.findRegion("0001").getRegionWidth()/PPM, this.textureAtlas.findRegion("0001").getRegionHeight()/PPM);
 
             if(this.isParticlesActorRotated) {
