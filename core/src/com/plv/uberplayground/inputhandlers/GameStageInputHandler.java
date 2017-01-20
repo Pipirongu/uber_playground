@@ -9,6 +9,7 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.plv.uberplayground.actors.AnimatedActor;
 import com.plv.uberplayground.actors.AnimatedPhysicsActor;
 
 public class GameStageInputHandler extends InputListener {
@@ -17,6 +18,7 @@ public class GameStageInputHandler extends InputListener {
     private Vector3 point = new Vector3();
     // used to store the body which collides with touch point
     private Body bodyThatWasHit = null;
+    AnimatedPhysicsActor spawnUnit = null;
 
     public GameStageInputHandler(final World world, final Stage gameStage){
         this.world = world;
@@ -65,9 +67,23 @@ public class GameStageInputHandler extends InputListener {
             Gdx.app.log("GameStage: ", "Handle Body");
         }else{
             //spawn someting
-            AnimatedPhysicsActor spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT,"spawn_unit", this.world,this.point.x,this.point.y, 2,2);
-            spawnUnit.setIdleAnimFrameDuration(0.1f);
-            this.gameStage.addActor(spawnUnit);
+            if(this.spawnUnit == null) {
+                this.spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, this.point.x, this.point.y, 2, 2);
+                this.spawnUnit.setIdleAnimFrameDuration(0.1f);
+                this.gameStage.addActor(this.spawnUnit);
+            }else{
+                //animate previous spawnUnit position
+                AnimatedActor test = new AnimatedActor("explosion",this.spawnUnit.getX(),this.spawnUnit.getY(),5,1);
+                this.gameStage.addActor(test);
+                //remove old spawnUnit
+                this.spawnUnit.remove();
+                this.world.destroyBody(this.spawnUnit.getBody());
+
+                //add new spawnUnit
+                this.spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, this.point.x, this.point.y, 2, 2);
+                this.spawnUnit.setIdleAnimFrameDuration(0.1f);
+                this.gameStage.addActor(this.spawnUnit);
+            }
             Gdx.app.log("GameStage: ", "Handle Unit");
         }
     }

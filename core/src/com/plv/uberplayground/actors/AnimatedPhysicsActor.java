@@ -20,6 +20,7 @@ public class AnimatedPhysicsActor extends Actor {
 
     private float elapsedTime = 0;
     private World world;
+
     private Body body;
 
     //TODO - might need later
@@ -161,5 +162,9 @@ public class AnimatedPhysicsActor extends Actor {
 
     public ActorType getActorType() {
         return this.actorType;
+    }
+
+    public Body getBody() {
+        return body;
     }
 }
