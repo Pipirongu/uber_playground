@@ -1,4 +1,4 @@
-*spawnUnit only one active - removed when user spawns new one
+*fps independent animation
 
 *agent uses steering behavior to move in the direction of the spawnUnit
 

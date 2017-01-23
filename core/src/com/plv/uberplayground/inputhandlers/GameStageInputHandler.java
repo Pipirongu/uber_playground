@@ -1,6 +1,7 @@
 package com.plv.uberplayground.inputhandlers;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Fixture;
@@ -73,8 +74,11 @@ public class GameStageInputHandler extends InputListener {
                 this.gameStage.addActor(this.spawnUnit);
             }else{
                 //animate previous spawnUnit position
-                AnimatedActor test = new AnimatedActor("explosion",this.spawnUnit.getX(),this.spawnUnit.getY(),5,1);
-                this.gameStage.addActor(test);
+                Vector2 previousBodyPos = this.spawnUnit.getBodyPosition();
+                AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y,5,1);
+                explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
+                this.gameStage.addActor(explosionAtPrevPos);
+
                 //remove old spawnUnit
                 this.spawnUnit.remove();
                 this.world.destroyBody(this.spawnUnit.getBody());

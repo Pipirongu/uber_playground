@@ -51,22 +51,31 @@ public class AnimatedActor extends Actor {
     public void draw(Batch batch, float alpha) {
         elapsedTime += Gdx.graphics.getDeltaTime();
 
-        //sprite and body have different origins, so we draw the animation at the right place
-        batch.draw(this.idleAnimation.getKeyFrame(elapsedTime, true),
-                this.getX() - (this.textureWidth/2.f)/PPM,
-                this.getY() - (this.textureHeight/2.f)/PPM,
-                (this.textureWidth/2.f)/PPM,
-                (this.textureHeight/2.f)/PPM,
-                this.textureWidth/PPM,
-                this.textureHeight/PPM,
-                1,
-                1,
-                0);
+        if(!this.idleAnimation.isAnimationFinished(elapsedTime)) {
+            //sprite and body have different origins, so we draw the animation at the right place
+            batch.draw(this.idleAnimation.getKeyFrame(elapsedTime, true),
+                    this.getX() - (this.textureWidth / 2.f) / PPM,
+                    this.getY() - (this.textureHeight / 2.f) / PPM,
+                    (this.textureWidth / 2.f) / PPM,
+                    (this.textureHeight / 2.f) / PPM,
+                    this.textureWidth / PPM,
+                    this.textureHeight / PPM,
+                    1,
+                    1,
+                    0);
+        }else{
+            //remove from stage
+            this.remove();
+        }
 
     }
 
     @Override
     public void act(float delta) {
         super.act(delta);
+    }
+
+    public void setIdleAnimFrameDuration(float frameDuration) {
+        this.idleAnimation.setFrameDuration(frameDuration);
     }
 }

@@ -167,4 +167,8 @@ public class AnimatedPhysicsActor extends Actor {
     public Body getBody() {
         return body;
     }
+
+    public Vector2 getBodyPosition() {
+        return this.body.getPosition();
+    }
 }
