@@ -10,18 +10,21 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.AnimatedActor;
 import com.plv.uberplayground.actors.AnimatedPhysicsActor;
+import com.plv.uberplayground.screens.GameScreen;
 
 public class GameStageInputHandler extends InputListener {
+    private UberPlayground app;
     private World world;
     private Stage gameStage;
     private Vector3 point = new Vector3();
     // used to store the body which collides with touch point
     private Body bodyThatWasHit = null;
-    AnimatedPhysicsActor spawnUnit = null;
 
-    public GameStageInputHandler(final World world, final Stage gameStage){
+    public GameStageInputHandler(final UberPlayground app, final World world, final Stage gameStage){
+        this.app = app;
         this.world = world;
         this.gameStage = gameStage;
     }
@@ -67,27 +70,8 @@ public class GameStageInputHandler extends InputListener {
             this.bodyThatWasHit = null;
             Gdx.app.log("GameStage: ", "Handle Body");
         }else{
-            //spawn someting
-            if(this.spawnUnit == null) {
-                this.spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, this.point.x, this.point.y, 2, 2);
-                this.spawnUnit.setIdleAnimFrameDuration(0.1f);
-                this.gameStage.addActor(this.spawnUnit);
-            }else{
-                //animate previous spawnUnit position
-                Vector2 previousBodyPos = this.spawnUnit.getBodyPosition();
-                AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y,5,1);
-                explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
-                this.gameStage.addActor(explosionAtPrevPos);
-
-                //remove old spawnUnit
-                this.spawnUnit.remove();
-                this.world.destroyBody(this.spawnUnit.getBody());
-
-                //add new spawnUnit
-                this.spawnUnit = new AnimatedPhysicsActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, this.point.x, this.point.y, 2, 2);
-                this.spawnUnit.setIdleAnimFrameDuration(0.1f);
-                this.gameStage.addActor(this.spawnUnit);
-            }
+            GameScreen gameScreen = (GameScreen)this.app.getScreen();
+            gameScreen.spawnControlPointAtPos(point.x, point.y);
             Gdx.app.log("GameStage: ", "Handle Unit");
         }
     }

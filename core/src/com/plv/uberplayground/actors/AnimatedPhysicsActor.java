@@ -8,31 +8,28 @@ import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
 public class AnimatedPhysicsActor extends Actor {
-    private Animation<TextureRegion> idleAnimation; // Must declare frame type (TextureRegion)
-    private int textureWidth;
-    private int textureHeight;
+    protected Animation<TextureRegion> idleAnimation; // Must declare frame type (TextureRegion)
+    protected int textureWidth;
+    protected int textureHeight;
 
-    private ParticleEffect pe = null;
-    private ParticleEmitter.ScaledNumericValue emitter_angle;
-    private float particlesOffsetX = 0.f;
-    private float particlesOffsetY = 0.f;
-    private Boolean isParticlesActorRotated = false;
+    protected ParticleEffect pe = null;
+    protected ParticleEmitter.ScaledNumericValue emitter_angle;
+    protected float particlesOffsetX = 0.f;
+    protected float particlesOffsetY = 0.f;
+    protected Boolean isParticlesActorRotated = false;
 
-    private float elapsedTime = 0;
-    private World world;
+    protected float elapsedTime = 0;
+    protected World world;
 
-    private Body body;
+    protected Body body;
 
-    //TODO - might need later
-    private static final int VIRTUAL_WIDTH = 16;
-    private static final int VIRTUAL_HEIGHT = 9;
-    private final static float PPM = 32f;
+    protected final static float PPM = 32f;
 
     public enum ActorType {
         PLAYER,
         SPAWNUNIT
     }
-    private ActorType actorType;
+    protected ActorType actorType;
 
     public AnimatedPhysicsActor(ActorType actorType, String animationName, World world, float x, float y, int frameCols, int frameRows){
         this.world = world;
