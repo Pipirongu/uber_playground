@@ -36,6 +36,7 @@ public class GameScreen implements Screen {
     private PlayerActor player;
     private ControlPointActor controlPoint = null;
     private Seek<Vector2> s;
+    private SteeringAcceleration<Vector2> steerAcc = new SteeringAcceleration<Vector2>(new Vector2());
     private final UberPlayground app;
 
     public GameScreen(final UberPlayground app) {
@@ -51,7 +52,7 @@ public class GameScreen implements Screen {
         this.player = new PlayerActor(AnimatedPhysicsActor.ActorType.PLAYER,"agent", this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2,5,2);
         this.player.setIdleAnimFrameDuration(0.05f);
         this.player.setParticleEmitter("exhaust",0.f,0.f,true,true);
-        this.player.setLinearVelocity(0.f, 0.1f);
+        //this.player.setLinearVelocity(0.f, 0.1f);
 
         //TODO
         //add button actors to hud
@@ -80,11 +81,21 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         this.world.step(delta, 6, 2);
 
-        SteeringAcceleration<Vector2> steerAcc = new SteeringAcceleration<Vector2>(new Vector2());
-        s.calculateSteering(steerAcc);
+        if(this.controlPoint != null) {
+            s = new Seek<Vector2>(this.player, this.controlPoint);
+            s.setEnabled(true);
+            s.calculateSteering(steerAcc);
 
-        this.player.getBody().applyLinearImpulse(steerAcc.linear.scl(delta), this.player.getBody().getPosition(), true);
-        this.player.getBody().applyAngularImpulse(steerAcc.angular * delta, true);
+            //this.player.getBody().applyTorque(steerAcc.angular * delta, true);
+            Vector2 linVel = this.player.getLinearVelocity();
+            if(!linVel.isZero()){
+                float newOrientation = this.player.vectorToAngle(linVel);
+                this.player.getBody().setAngularVelocity((this.player.getAngularVelocity() - newOrientation) * delta);
+                //this.player.getBody().setTransform(this.player.getBody().getPosition(), newOrientation);
+            }
+            //this.player.getBody().applyLinearImpulse(steerAcc.linear.scl(delta), this.player.getBody().getPosition(), true);
+
+        }
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);

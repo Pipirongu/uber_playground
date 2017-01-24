@@ -8,13 +8,36 @@ import com.badlogic.gdx.physics.box2d.World;
 
 public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vector2> {
 
+    Vector2 position;
+    float orientation;
+    Vector2 linearVelocity;
+    float angularVelocity;
+    float maxSpeed;
+    float maxLinearSpeed;
+    float maxLinearAcceleration;
+    boolean independentFacing;
+
     public PlayerActor(ActorType actorType, String animationName, World world, float x, float y, int frameCols, int frameRows){
         super(actorType, animationName, world, x,  y, frameCols, frameRows);
+
+        position = new Vector2(body.getPosition().x, body.getPosition().y);
+        linearVelocity = new Vector2(1f, 1f);
+        orientation = 0;
+        angularVelocity = 10f;
+
+        independentFacing = true;
+        maxLinearSpeed = 10f;
+        maxLinearAcceleration = 1f;
+    }
+
+    @Override
+    public Vector2 getLinearVelocity() {
+        return linearVelocity;
     }
 
     @Override
     public float getAngularVelocity() {
-        return 0;
+        return angularVelocity;
     }
 
     @Override
@@ -34,7 +57,7 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public float getZeroLinearSpeedThreshold() {
-        return 0;
+        return 1;
     }
 
     @Override
@@ -44,7 +67,7 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public float getMaxLinearSpeed() {
-        return 0;
+        return maxLinearSpeed;
     }
 
     @Override
@@ -54,7 +77,7 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public float getMaxLinearAcceleration() {
-        return 0;
+        return maxLinearAcceleration;
     }
 
     @Override
@@ -84,12 +107,12 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public Vector2 getPosition() {
-        return null;
+        return position;
     }
 
     @Override
     public float getOrientation() {
-        return 0;
+        return orientation;
     }
 
     @Override
@@ -99,16 +122,18 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public float vectorToAngle(Vector2 vector) {
-        return 0;
+        return (float)Math.atan2(-vector.x, vector.y);
     }
 
     @Override
     public Vector2 angleToVector(Vector2 outVector, float angle) {
-        return null;
+        outVector.x = -(float)Math.sin(angle);
+        outVector.y = (float)Math.cos(angle);
+        return outVector;
     }
 
     @Override
     public Location<Vector2> newLocation() {
-        return null;
+        return new Scene2dLocation();
     }
 }
