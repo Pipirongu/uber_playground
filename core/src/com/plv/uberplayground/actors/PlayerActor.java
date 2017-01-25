@@ -134,6 +134,6 @@ public class PlayerActor extends AnimatedPhysicsActor implements Steerable<Vecto
 
     @Override
     public Location<Vector2> newLocation() {
-        return new Scene2dLocation();
+        return null;
     }
 }

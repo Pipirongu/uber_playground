@@ -4,10 +4,12 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.ai.steer.SteeringAcceleration;
+import com.badlogic.gdx.ai.steer.behaviors.LookWhereYouAreGoing;
 import com.badlogic.gdx.ai.steer.behaviors.Seek;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -35,6 +37,7 @@ public class GameScreen implements Screen {
     private Stage gameStage;
     private PlayerActor player;
     private ControlPointActor controlPoint = null;
+    private ControlPointActor previousControlPoint = null;
     private Seek<Vector2> s;
     private SteeringAcceleration<Vector2> steerAcc = new SteeringAcceleration<Vector2>(new Vector2());
     private final UberPlayground app;
@@ -82,19 +85,35 @@ public class GameScreen implements Screen {
         this.world.step(delta, 6, 2);
 
         if(this.controlPoint != null) {
-            s = new Seek<Vector2>(this.player, this.controlPoint);
-            s.setEnabled(true);
+            if(this.controlPoint != this.previousControlPoint) {
+                s.setTarget(this.controlPoint);
+                this.previousControlPoint = this.previousControlPoint;
+            }
             s.calculateSteering(steerAcc);
 
-            //this.player.getBody().applyTorque(steerAcc.angular * delta, true);
-            Vector2 linVel = this.player.getLinearVelocity();
-            if(!linVel.isZero()){
-                float newOrientation = this.player.vectorToAngle(linVel);
-                this.player.getBody().setAngularVelocity((this.player.getAngularVelocity() - newOrientation) * delta);
-                //this.player.getBody().setTransform(this.player.getBody().getPosition(), newOrientation);
-            }
-            //this.player.getBody().applyLinearImpulse(steerAcc.linear.scl(delta), this.player.getBody().getPosition(), true);
+            Body playerBody = this.player.getBody();
+            Body controlPointBody = this.controlPoint.getBody();
 
+            Vector2 max_velocity = new Vector2(10f,10f);
+            float max_force = 5f;
+            float max_speed = 100;
+
+            Vector2 desired_velocity = ((controlPointBody.getPosition().sub(playerBody.getPosition()).nor()).scl(max_velocity));
+            Vector2 steering = desired_velocity.sub(playerBody.getLinearVelocity());
+            steering = truncate(steering.scl(5*delta), max_force);
+            steering.x = steering.x/1;
+            steering.y = steering.y/1;
+
+            //Vector2 velocity = truncate(playerBody.getLinearVelocity().add(steering), max_speed);
+            playerBody.setLinearVelocity(playerBody.getLinearVelocity().add(steering));
+            playerBody.setAngularVelocity(-steering.angleRad());
+
+            //playerBody.setTransform(playerBody.getPosition().add(velocity),0);       //position + velocity
+
+            //this.player.getBody().setAngularVelocity(-this.player.getBody().getLinearVelocity().angleRad());
+            //this.player.getBody().applyLinearImpulse(steerAcc.linear.scl(delta), this.player.getBody().getPosition(), true);
+            //double angle = AngleBetweenPointsRadiansDouble(this.player.getBody().getPosition(), this.player.getBody().getLinearVelocity());
+            //this.player.getBody().setTransform(this.player.getBody().getPosition(), this.player.getBody().getLinearVelocity().angleRad());
         }
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -166,6 +185,25 @@ public class GameScreen implements Screen {
             this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, x, y, 2, 2);
             this.controlPoint.setIdleAnimFrameDuration(0.1f);
             this.gameStage.addActor(this.controlPoint);
+        }
+    }
+
+    public double AngleBetweenPointsRadiansDouble(Vector2 P1, Vector2 P2) {
+        return Math.atan2( ( P2.y - P1.y ), ( P2.x - P1.x ) );
+    }
+
+    public Vector2 truncate(Vector2 v, float max) {
+        if (v.len() > max)
+        {
+            v = v.nor();
+
+            Vector2 newV = new Vector2();
+            newV.x = v.x * max;
+            newV.y = v.y * max;
+
+            return newV;
+        }else{
+            return v;
         }
     }
 }

@@ -133,6 +133,6 @@ public class ControlPointActor extends AnimatedPhysicsActor implements Steerable
 
     @Override
     public Location<Vector2> newLocation() {
-        return new Scene2dLocation();
+        return null;
     }
 }
