@@ -3,207 +3,201 @@ package com.plv.uberplayground.screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.ai.steer.SteeringAcceleration;
-import com.badlogic.gdx.ai.steer.behaviors.LookWhereYouAreGoing;
-import com.badlogic.gdx.ai.steer.behaviors.Seek;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FillViewport;
+import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.AnimatedActor;
 import com.plv.uberplayground.actors.AnimatedPhysicsActor;
-import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.ControlPointActor;
 import com.plv.uberplayground.actors.PlayerActor;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
 
 public class GameScreen implements Screen {
-    private World world;
-    private Box2DDebugRenderer debugRenderer;
+	private World world;
+	private Box2DDebugRenderer debugRenderer;
 
-    private static final int VIRTUAL_WIDTH = 16;
-    private static final int VIRTUAL_HEIGHT = 9;
+	private static final int VIRTUAL_WIDTH = 16;
+	private static final int VIRTUAL_HEIGHT = 9;
 
-    private OrthographicCamera mainCamera;
-    //group for agent and its particle emitter, physics applies to group, will rotate emitter as well
+	private OrthographicCamera mainCamera;
+	// group for agent and its particle emitter, physics applies to group, will
+	// rotate emitter as well
 
-    //UI menu in-game - different VIRTUAL_WIDTH/VIRTUAL_HEIGHT
-    private Stage hudStage;
-    //stage for actors, and also playfield to spawn 'targets'
-    private Stage gameStage;
-    private PlayerActor player;
-    private ControlPointActor controlPoint = null;
-    private ControlPointActor previousControlPoint = null;
-    private Seek<Vector2> s;
-    private SteeringAcceleration<Vector2> steerAcc = new SteeringAcceleration<Vector2>(new Vector2());
-    private final UberPlayground app;
+	// UI menu in-game - different VIRTUAL_WIDTH/VIRTUAL_HEIGHT
+	private Stage hudStage;
+	// stage for actors, and also playfield to spawn 'targets'
+	private Stage gameStage;
+	private PlayerActor player;
+	private ControlPointActor controlPoint = null;
+	private final UberPlayground app;
 
-    public GameScreen(final UberPlayground app) {
-        this.app = app;
-        this.mainCamera = new OrthographicCamera();
-        this.hudStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
-        this.gameStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+	private long startTime;
 
-        this.world = new World(new Vector2(), true);
-        this.debugRenderer = new Box2DDebugRenderer();
+	public GameScreen(final UberPlayground app) {
+		this.app = app;
+		this.mainCamera = new OrthographicCamera();
+		this.hudStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+		this.gameStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
 
-        //create agents
-        this.player = new PlayerActor(AnimatedPhysicsActor.ActorType.PLAYER,"agent", this.world,VIRTUAL_WIDTH/2,VIRTUAL_HEIGHT/2,5,2);
-        this.player.setIdleAnimFrameDuration(0.05f);
-        this.player.setParticleEmitter("exhaust",0.f,0.f,true,true);
-        //this.player.setLinearVelocity(0.f, 0.1f);
+		this.world = new World(new Vector2(), true);
+		this.debugRenderer = new Box2DDebugRenderer();
 
-        //TODO
-        //add button actors to hud
-        //this.hudStage.addListener(new HudStageInputHandler());
-        //this.hudStage.addActor(agent);
+		// create agents
+		this.player = new PlayerActor(AnimatedPhysicsActor.ActorType.PLAYER, "agent", this.world, VIRTUAL_WIDTH / 2,
+				VIRTUAL_HEIGHT / 2, 5, 2);
+		this.player.setIdleAnimFrameDuration(0.05f);
+		this.player.setParticleEmitter("exhaust", 0.f, 0.f, true, true);
+		// this.player.setLinearVelocity(0.f, 0.1f);
 
-        //add agent to scene
-        this.gameStage.addListener(new GameStageInputHandler(this.app, this.world, this.gameStage));
-        this.gameStage.addActor(this.player);
+		// TODO
+		// add button actors to hud
+		// this.hudStage.addListener(new HudStageInputHandler());
+		// this.hudStage.addActor(agent);
 
-        s = new Seek<Vector2>(this.player, this.controlPoint);
-        s.setEnabled(true);
+		// add agent to scene
+		this.gameStage.addListener(new GameStageInputHandler(this.app, this.world, this.gameStage));
+		this.gameStage.addActor(this.player);
 
-        //InputMultiplexer - HUD stage first, then Actor/Game stage
-        InputMultiplexer multiplexer = new InputMultiplexer();
-        multiplexer.addProcessor(this.hudStage);
-        multiplexer.addProcessor(this.gameStage);
-        Gdx.input.setInputProcessor(multiplexer);
-    }
+		// InputMultiplexer - HUD stage first, then Actor/Game stage
+		InputMultiplexer multiplexer = new InputMultiplexer();
+		multiplexer.addProcessor(this.hudStage);
+		multiplexer.addProcessor(this.gameStage);
+		Gdx.input.setInputProcessor(multiplexer);
+	}
 
-    @Override
-    public void show() {
-    }
+	@Override
+	public void show() {
+	}
 
-    @Override
-    public void render(float delta) {
-        this.world.step(delta, 6, 2);
+	@Override
+	public void render(float delta) {
+		this.world.step(delta, 6, 2);
 
-        if(this.controlPoint != null) {
-            if(this.controlPoint != this.previousControlPoint) {
-                s.setTarget(this.controlPoint);
-                this.previousControlPoint = this.previousControlPoint;
-            }
-            s.calculateSteering(steerAcc);
+		if (this.controlPoint != null) {
+			Body playerBody = this.player.getBody();
+			Body controlPointBody = this.controlPoint.getBody();
 
-            Body playerBody = this.player.getBody();
-            Body controlPointBody = this.controlPoint.getBody();
+			// TODO
+			float velocity = 5f; // Your desired velocity of the car.
+			float angle = playerBody.getAngle(); // Body angle in radians.
+			float velX = (float) (Math.cos(angle) * velocity); // X-component.
+			float velY = (float) (Math.sin(angle) * velocity); // Y-component.
 
-            Vector2 max_velocity = new Vector2(10f,10f);
-            float max_force = 5f;
-            float max_speed = 100;
+			/*
+			 * interpolate from player's angle to desired angle. 0.1f amount of
+			 * desired angle for each iteration next interpolation uses new
+			 * player's angle with some rotation from desired angle which makes
+			 * 0.1f as progress argument possible
+			 */
 
-            Vector2 desired_velocity = ((controlPointBody.getPosition().sub(playerBody.getPosition()).nor()).scl(max_velocity));
-            Vector2 steering = desired_velocity.sub(playerBody.getLinearVelocity());
-            steering = truncate(steering.scl(5*delta), max_force);
-            steering.x = steering.x/1;
-            steering.y = steering.y/1;
-
-            //Vector2 velocity = truncate(playerBody.getLinearVelocity().add(steering), max_speed);
-            playerBody.setLinearVelocity(playerBody.getLinearVelocity().add(steering));
-            playerBody.setAngularVelocity(-steering.angleRad());
-
-            //playerBody.setTransform(playerBody.getPosition().add(velocity),0);       //position + velocity
-
-            //this.player.getBody().setAngularVelocity(-this.player.getBody().getLinearVelocity().angleRad());
-            //this.player.getBody().applyLinearImpulse(steerAcc.linear.scl(delta), this.player.getBody().getPosition(), true);
-            //double angle = AngleBetweenPointsRadiansDouble(this.player.getBody().getPosition(), this.player.getBody().getLinearVelocity());
-            //this.player.getBody().setTransform(this.player.getBody().getPosition(), this.player.getBody().getLinearVelocity().angleRad());
-        }
+			/*
+			 * different solution would be to store the player angle and then
+			 * update the progress arg with if statement player angle will only
+			 * be updated when a new controlPoint is spawned //TODO test
+			 * interpolation method
+			 */
+			playerBody.setTransform(playerBody.getPosition(),
+					MathUtils.lerpAngle(playerBody.getAngle(), this.getDesiredAngle(), 0.1f));
+			playerBody.setLinearVelocity(-velY, velX);
+		}
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+		// TODO
+		// Calling to Stage methods - order?
+		this.hudStage.act(delta);
+		this.gameStage.act(delta);
 
-		//TODO
-        // Calling to Stage methods - order?
-        this.hudStage.act(delta);
-        this.gameStage.act(delta);
+		this.hudStage.draw();
+		this.gameStage.draw();
 
-        this.hudStage.draw();
-        this.gameStage.draw();
+		this.debugRenderer.render(this.world, this.gameStage.getViewport().getCamera().combined);
+	}
 
-        this.debugRenderer.render(this.world, this.gameStage.getViewport().getCamera().combined);
-    }
+	@Override
+	public void resize(int width, int height) {
+		// TODO
+		// this.getViewport().update(width/PPM, height/PPM);
+		// this.stage.getViewport().setCamera(this.app.gameCamera);
+		// ((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM,
+		// this.app.VIRTUAL_HEIGHT/PPM);
+		// ((OrthographicCamera)this.stage.getCamera()).translate((VIRTUAL_WIDTH/2)/PPM,
+		// (VIRTUAL_HEIGHT/2)/PPM);
+		// this.stage.getViewport().update(16, 9, false);
+	}
 
-    @Override
-    public void resize(int width, int height) {
-        //TODO
-        //this.getViewport().update(width/PPM, height/PPM);
-        //this.stage.getViewport().setCamera(this.app.gameCamera);
-        //((OrthographicCamera)this.stage.getCamera()).setToOrtho(false,this.app.VIRTUAL_WIDTH/PPM, this.app.VIRTUAL_HEIGHT/PPM);
-        //((OrthographicCamera)this.stage.getCamera()).translate((VIRTUAL_WIDTH/2)/PPM, (VIRTUAL_HEIGHT/2)/PPM);
-        //this.stage.getViewport().update(16, 9, false);
-    }
+	@Override
+	public void pause() {
 
-    @Override
-    public void pause() {
+	}
 
-    }
+	@Override
+	public void resume() {
 
-    @Override
-    public void resume() {
+	}
 
-    }
+	@Override
+	public void hide() {
 
-    @Override
-    public void hide() {
+	}
 
-    }
-
-
-    @Override
-    public void dispose() {
-        this.debugRenderer.dispose();
+	@Override
+	public void dispose() {
+		this.debugRenderer.dispose();
 		this.world.dispose();
-        this.gameStage.dispose();
-    }
+		this.gameStage.dispose();
+	}
 
-    public void spawnControlPointAtPos(float x, float y){
-        //spawn someting
-        if(this.controlPoint == null) {
-            this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, x, y, 2, 2);
-            this.controlPoint.setIdleAnimFrameDuration(0.1f);
-            this.gameStage.addActor(this.controlPoint);
-        }else{
-            //animate previous spawnUnit position
-            Vector2 previousBodyPos = this.controlPoint.getBodyPosition();
-            AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y,5,1);
-            explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
-            this.gameStage.addActor(explosionAtPrevPos);
+	public void spawnControlPointAtPos(float x, float y) {
+		// spawn someting
+		if (this.controlPoint == null) {
+			this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit",
+					this.world, x, y, 2, 2);
+			this.controlPoint.setIdleAnimFrameDuration(0.1f);
+			this.gameStage.addActor(this.controlPoint);
 
-            //remove old spawnUnit
-            this.controlPoint.remove();
-            this.world.destroyBody(this.controlPoint.getBody());
+			// start timer
+			this.startTime = System.currentTimeMillis();
+		} else {
+			// if timer 1 sec spawn and reset
+			// animate previous spawnUnit position
+			float elapsedTime = (System.currentTimeMillis() - this.startTime) / 1000f;
 
-            //add new spawnUnit
-            this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit", this.world, x, y, 2, 2);
-            this.controlPoint.setIdleAnimFrameDuration(0.1f);
-            this.gameStage.addActor(this.controlPoint);
-        }
-    }
+			if (elapsedTime >= 0f) {
+				this.startTime = System.currentTimeMillis();
 
-    public double AngleBetweenPointsRadiansDouble(Vector2 P1, Vector2 P2) {
-        return Math.atan2( ( P2.y - P1.y ), ( P2.x - P1.x ) );
-    }
+				Vector2 previousBodyPos = this.controlPoint.getBodyPosition();
+				AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y,
+						5, 1);
+				explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
+				this.gameStage.addActor(explosionAtPrevPos);
 
-    public Vector2 truncate(Vector2 v, float max) {
-        if (v.len() > max)
-        {
-            v = v.nor();
+				// remove old spawnUnit
+				this.controlPoint.remove();
+				this.world.destroyBody(this.controlPoint.getBody());
 
-            Vector2 newV = new Vector2();
-            newV.x = v.x * max;
-            newV.y = v.y * max;
+				// add new spawnUnit
+				this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit",
+						this.world, x, y, 2, 2);
+				this.controlPoint.setIdleAnimFrameDuration(0.1f);
+				this.gameStage.addActor(this.controlPoint);
+			}
+		}
+	}
 
-            return newV;
-        }else{
-            return v;
-        }
-    }
+	// TODO test funcs
+	public float getDesiredAngle() {
+		float targetX = this.controlPoint.getBody().getPosition().x - this.player.getBody().getPosition().x;
+		float targetY = this.controlPoint.getBody().getPosition().y - this.player.getBody().getPosition().y;
+
+		return (float) (Math.atan2(-targetX, targetY));
+	}
 }

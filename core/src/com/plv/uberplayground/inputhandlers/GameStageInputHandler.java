@@ -72,7 +72,7 @@ public class GameStageInputHandler extends InputListener {
         }else{
             GameScreen gameScreen = (GameScreen)this.app.getScreen();
             gameScreen.spawnControlPointAtPos(point.x, point.y);
-            Gdx.app.log("GameStage: ", "Handle Unit");
+            Gdx.app.log("GameStage: ", "New Control Point");
         }
     }
 

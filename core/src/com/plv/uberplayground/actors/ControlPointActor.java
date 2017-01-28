@@ -3,6 +3,9 @@ package com.plv.uberplayground.actors;
 import com.badlogic.gdx.ai.steer.Steerable;
 import com.badlogic.gdx.ai.utils.Location;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 
 public class ControlPointActor extends AnimatedPhysicsActor implements Steerable<Vector2> {
@@ -27,6 +30,10 @@ public class ControlPointActor extends AnimatedPhysicsActor implements Steerable
         independentFacing = true;
         maxLinearSpeed = 1000f;
         maxLinearAcceleration = 1f;
+        
+        
+        this.body.setType(BodyDef.BodyType.StaticBody);
+        this.body.getFixtureList().get(0).setSensor(true);
     }
 
     @Override

@@ -78,10 +78,7 @@ public class AnimatedPhysicsActor extends Actor {
         this.body = this.world.createBody(bodyDef);
         this.body.createFixture(fixtureDef);
         this.body.setUserData(this);
-
-        //this.body.setLinearVelocity(0.f, 0.1f);
-        //this.body.applyTorque(2*meters_per_pixels,true);
-        //this.body.setAngularVelocity(0.5f);
+        
         shape.dispose();
     }
 
