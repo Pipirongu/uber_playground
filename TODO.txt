@@ -26,3 +26,9 @@ calced velX, velY works but makes no sense when using with setLinearVelocity
 -check getDesiredAngle - math behind that.
 
 -check how Seek behavior actually works and if any other behavior is similar to the one implemented
+
+http://www.gamefromscratch.com/post/2012/11/18/GameDev-math-recipes-Rotating-to-face-a-point.aspx
+http://www.kongregate.com/forums/4/topics/44153
+http://www.java-gaming.org/index.php?topic=33410.0
+http://stackoverflow.com/questions/21483999/using-atan2-to-find-angle-between-two-vectors
+http://www.box2d.org/forum/viewtopic.php?t=2707
