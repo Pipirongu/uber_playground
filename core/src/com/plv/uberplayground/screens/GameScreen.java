@@ -86,9 +86,9 @@ public class GameScreen implements Screen {
 
 			// TODO
 			float velocity = 5f; // Your desired velocity of the car.
-			float angle = playerBody.getAngle(); // Body angle in radians.
-			float velX = (float) (Math.cos(angle) * velocity); // X-component.
-			float velY = (float) (Math.sin(angle) * velocity); // Y-component.
+			float angle = playerBody.getAngle() + MathUtils.PI/2f; // Body angle in radians.
+			float velX = (float) (MathUtils.cos(angle) * velocity); // X-component.
+			float velY = (float) (MathUtils.sin(angle) * velocity); // Y-component.
 
 			/*
 			 * interpolate from player's angle to desired angle. 0.1f amount of
@@ -105,7 +105,7 @@ public class GameScreen implements Screen {
 			 */
 			playerBody.setTransform(playerBody.getPosition(),
 					MathUtils.lerpAngle(playerBody.getAngle(), this.getDesiredAngle(), 0.1f));
-			playerBody.setLinearVelocity(-velY, velX);
+			playerBody.setLinearVelocity(velX, velY);
 		}
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -198,6 +198,6 @@ public class GameScreen implements Screen {
 		float targetX = this.controlPoint.getBody().getPosition().x - this.player.getBody().getPosition().x;
 		float targetY = this.controlPoint.getBody().getPosition().y - this.player.getBody().getPosition().y;
 
-		return (float) (Math.atan2(-targetX, targetY));
+		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI/2f;
 	}
 }

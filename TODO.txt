@@ -1,34 +1,32 @@
 *fps independent animation
 
-*agent uses steering behavior to move in the direction of the spawnUnit
-
-*hostileUnits are in the playfield - agent explodes(animation change) 
+3)*hostileUnits are in the playfield - agent explodes(animation change) 
 on collision, transition to gameOver state
 -walls on edges needed.
 
-*powerUps spawn at set interval with random pos and doubles the points 
+4)*powerUps spawn at set interval with random pos and doubles the points 
 -but has negative effects such as 2x speed on agent
 or changes the hostileUnits
 -points are acquired depending on how long the player survives
 
--when the player reaches the controlPoint it will circle around it
+2)-when the player reaches the controlPoint it will circle around it
 -controlPoint has an indicator to show it will explode soon. game over if it explodes
 
-*inGame HUD
+1)*inGame HUD
 -fps and high score hud
 -pause menu to go back to main menu with high score and game mode selection
 
 
 ***
-calced velX, velY works but makes no sense when using with setLinearVelocity
--find how to move in the direction ship is looking
+//calced velX, velY works but makes no sense when using with setLinearVelocity
+//-find how to move in the direction ship is looking
 
--check getDesiredAngle - math behind that.
+**-check getDesiredAngle - math behind that.
 
 -check how Seek behavior actually works and if any other behavior is similar to the one implemented
 
-http://www.gamefromscratch.com/post/2012/11/18/GameDev-math-recipes-Rotating-to-face-a-point.aspx
-http://www.kongregate.com/forums/4/topics/44153
-http://www.java-gaming.org/index.php?topic=33410.0
-http://stackoverflow.com/questions/21483999/using-atan2-to-find-angle-between-two-vectors
-http://www.box2d.org/forum/viewtopic.php?t=2707
+//http://www.gamefromscratch.com/post/2012/11/18/GameDev-math-recipes-Rotating-to-face-a-point.aspx
+//http://www.kongregate.com/forums/4/topics/44153
+//http://www.java-gaming.org/index.php?topic=33410.0
+//http://stackoverflow.com/questions/21483999/using-atan2-to-find-angle-between-two-vectors
+//http://www.box2d.org/forum/viewtopic.php?t=2707
