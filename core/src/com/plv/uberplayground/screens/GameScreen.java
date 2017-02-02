@@ -86,7 +86,10 @@ public class GameScreen implements Screen {
 
 			// TODO
 			float velocity = 5f; // Your desired velocity of the car.
-			float angle = playerBody.getAngle() + MathUtils.PI/2f; // Body angle in radians.
+			float angle = playerBody.getAngle() + MathUtils.PI / 2f; // Body
+																		// angle
+																		// in
+																		// radians.
 			float velX = (float) (MathUtils.cos(angle) * velocity); // X-component.
 			float velY = (float) (MathUtils.sin(angle) * velocity); // Y-component.
 
@@ -103,8 +106,17 @@ public class GameScreen implements Screen {
 			 * be updated when a new controlPoint is spawned //TODO test
 			 * interpolation method
 			 */
+
+			float desiredAngle = this.getDesiredAngle();
+			// limit the rotation to -180 to 180 degrees
+			while (desiredAngle < -MathUtils.PI) {
+				desiredAngle += MathUtils.PI2;
+			}
+			while (desiredAngle > MathUtils.PI) {
+				desiredAngle -= MathUtils.PI2;
+			}
 			playerBody.setTransform(playerBody.getPosition(),
-					MathUtils.lerpAngle(playerBody.getAngle(), this.getDesiredAngle(), 0.1f));
+					MathUtils.lerpAngle(playerBody.getAngle(), desiredAngle, 0.1f));
 			playerBody.setLinearVelocity(velX, velY);
 		}
 
@@ -198,6 +210,6 @@ public class GameScreen implements Screen {
 		float targetX = this.controlPoint.getBody().getPosition().x - this.player.getBody().getPosition().x;
 		float targetY = this.controlPoint.getBody().getPosition().y - this.player.getBody().getPosition().y;
 
-		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI/2f;
+		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI / 2f;
 	}
 }
