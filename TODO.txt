@@ -39,3 +39,4 @@ or changes the hostileUnits
 //http://www.box2d.org/forum/viewtopic.php?t=2707
 http://gamedev.stackexchange.com/questions/52988/implementing-a-homing-missile/53534#53534
 http://natureofcode.com/book/chapter-6-autonomous-agents/
+http://www.gamefromscratch.com/post/2014/09/25/LibGDX-LibGDX-Tutorial-13-Physics-with-Box2D-Part-3-Collisions.aspx

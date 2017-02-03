@@ -9,6 +9,10 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FillViewport;
@@ -47,6 +51,36 @@ public class GameScreen implements Screen {
 		this.gameStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
 
 		this.world = new World(new Vector2(), true);
+		
+		this.world.setContactListener(new ContactListener() {
+            @Override
+            public void beginContact(Contact contact) {
+                // Check to see if the collision is between the second sprite and the bottom of the screen
+                // If so apply a random amount of upward force to both objects... just because
+                if((contact.getFixtureA().getBody() == bodyEdgeScreen &&
+                        contact.getFixtureB().getBody() == body2)
+                        ||
+                        (contact.getFixtureA().getBody() == body2 &&
+                                contact.getFixtureB().getBody() == bodyEdgeScreen)) {
+
+                    body.applyForceToCenter(0,MathUtils.random(20,50),true);
+                    body2.applyForceToCenter(0, MathUtils.random(20,50), true);
+                }
+            }
+
+            @Override
+            public void endContact(Contact contact) {
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold) {
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse) {
+            }
+        });
+	       
 		this.debugRenderer = new Box2DDebugRenderer();
 
 		// create agents
@@ -127,7 +161,7 @@ public class GameScreen implements Screen {
 
 			//Subtract the current velocity. This is the calibration force
 			Vector2 steeringForce = desiredVelocity.cpy().sub(playerBody.getLinearVelocity());
-			steeringForce = steeringForce.cpy().limit(0.5f);
+			steeringForce = steeringForce.cpy().limit(0.8f);
 
 			//Apply the steering. The less the mass, the more effective the steering
 			playerBody.applyForceToCenter(steeringForce, true);
