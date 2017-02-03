@@ -1,3 +1,7 @@
+Wander behavior for enemies
+Pursuit
+Wall Avoidance
+
 *fps independent animation
 
 3)*hostileUnits are in the playfield - agent explodes(animation change) 
@@ -11,6 +15,9 @@ or changes the hostileUnits
 
 2)-when the player reaches the controlPoint it will circle around it
 -controlPoint has an indicator to show it will explode soon. game over if it explodes
+*
+--it should move in the direction of the controlPoint, but not circle around.
+--go past it and despawn the controlPoint
 
 1)*inGame HUD
 -fps and high score hud
@@ -30,3 +37,5 @@ or changes the hostileUnits
 //http://www.java-gaming.org/index.php?topic=33410.0
 //http://stackoverflow.com/questions/21483999/using-atan2-to-find-angle-between-two-vectors
 //http://www.box2d.org/forum/viewtopic.php?t=2707
+http://gamedev.stackexchange.com/questions/52988/implementing-a-homing-missile/53534#53534
+http://natureofcode.com/book/chapter-6-autonomous-agents/

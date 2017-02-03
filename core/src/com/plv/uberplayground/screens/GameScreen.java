@@ -74,6 +74,7 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void show() {
+		this.player.getBody().applyForceToCenter(new Vector2(0f,0.5f), true);
 	}
 
 	@Override
@@ -86,10 +87,7 @@ public class GameScreen implements Screen {
 
 			// TODO
 			float velocity = 5f; // Your desired velocity of the car.
-			float angle = playerBody.getAngle() + MathUtils.PI / 2f; // Body
-																		// angle
-																		// in
-																		// radians.
+			float angle = playerBody.getAngle() + MathUtils.PI/2f; // Body angle in radians.
 			float velX = (float) (MathUtils.cos(angle) * velocity); // X-component.
 			float velY = (float) (MathUtils.sin(angle) * velocity); // Y-component.
 
@@ -105,19 +103,43 @@ public class GameScreen implements Screen {
 			 * update the progress arg with if statement player angle will only
 			 * be updated when a new controlPoint is spawned //TODO test
 			 * interpolation method
-			 */
+			 */			
+//			float desiredAngle = this.getDesiredAngle();
+//			// limit the rotation to -180 to 180 degrees
+//			while (desiredAngle < -MathUtils.PI) {
+//				desiredAngle += MathUtils.PI2;
+//			}
+//			while (desiredAngle > MathUtils.PI) {
+//				desiredAngle -= MathUtils.PI2;
+//			}
+//			playerBody.setTransform(playerBody.getPosition(),
+//					MathUtils.lerpAngle(playerBody.getAngle(), desiredAngle, 0.1f));
+//			playerBody.setLinearVelocity(velX, velY);
+			
+			////
+			
+			//First we get the direction we need to travel in
+			Vector2 direction = (controlPointBody.getPosition().cpy().sub(playerBody.getPosition())).nor();
+			Vector2 dir = new Vector2(velX, velY).nor();
 
-			float desiredAngle = this.getDesiredAngle();
-			// limit the rotation to -180 to 180 degrees
-			while (desiredAngle < -MathUtils.PI) {
-				desiredAngle += MathUtils.PI2;
+			//Multiply it by the maximum speed we're trying to reach
+			Vector2 desiredVelocity = direction.cpy().scl(10f);
+
+			//Subtract the current velocity. This is the calibration force
+			Vector2 steeringForce = desiredVelocity.cpy().sub(playerBody.getLinearVelocity());
+			steeringForce = steeringForce.cpy().limit(0.5f);
+
+			//Apply the steering. The less the mass, the more effective the steering
+			playerBody.applyForceToCenter(steeringForce, true);
+			float heading = playerBody.getLinearVelocity().angleRad() - MathUtils.PI/2f;
+			while (heading < -MathUtils.PI) {
+				heading += MathUtils.PI2;
 			}
-			while (desiredAngle > MathUtils.PI) {
-				desiredAngle -= MathUtils.PI2;
+			while (heading > MathUtils.PI) {
+				heading -= MathUtils.PI2;
 			}
-			playerBody.setTransform(playerBody.getPosition(),
-					MathUtils.lerpAngle(playerBody.getAngle(), desiredAngle, 0.1f));
-			playerBody.setLinearVelocity(velX, velY);
+			playerBody.setTransform(playerBody.getPosition(), heading);
+			//playerBody.setTransform(playerBody.getPosition(), MathUtils.lerpAngle(playerBody.getAngle(), this.getDesiredAngle(), 0.1f));
 		}
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -210,6 +232,6 @@ public class GameScreen implements Screen {
 		float targetX = this.controlPoint.getBody().getPosition().x - this.player.getBody().getPosition().x;
 		float targetY = this.controlPoint.getBody().getPosition().y - this.player.getBody().getPosition().y;
 
-		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI / 2f;
+		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI/2f;
 	}
 }
