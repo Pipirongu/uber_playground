@@ -5,22 +5,24 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.EdgeShape;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.viewport.FillViewport;
 import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.AnimatedActor;
-import com.plv.uberplayground.actors.AnimatedPhysicsActor;
 import com.plv.uberplayground.actors.ControlPointActor;
 import com.plv.uberplayground.actors.PlayerActor;
+import com.plv.uberplayground.config.Configuration;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
 
 public class GameScreen implements Screen {
@@ -39,10 +41,7 @@ public class GameScreen implements Screen {
 	// stage for actors, and also playfield to spawn 'targets'
 	private Stage gameStage;
 	private PlayerActor player;
-	private ControlPointActor controlPoint = null;
 	private final UberPlayground app;
-
-	private long startTime;
 
 	public GameScreen(final UberPlayground app) {
 		this.app = app;
@@ -51,40 +50,52 @@ public class GameScreen implements Screen {
 		this.gameStage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
 
 		this.world = new World(new Vector2(), true);
-		
 		this.world.setContactListener(new ContactListener() {
-            @Override
-            public void beginContact(Contact contact) {
-                // Check to see if the collision is between the second sprite and the bottom of the screen
-                // If so apply a random amount of upward force to both objects... just because
-                if((contact.getFixtureA().getBody() == bodyEdgeScreen &&
-                        contact.getFixtureB().getBody() == body2)
-                        ||
-                        (contact.getFixtureA().getBody() == body2 &&
-                                contact.getFixtureB().getBody() == bodyEdgeScreen)) {
+			@Override
+			public void beginContact(Contact contact) {
+				// Check to see if the collision is between the second sprite
+				// and the bottom of the screen
+				// If so apply a random amount of upward force to both
+				// objects... just because
+				if ((contact.getFixtureA().getFilterData().categoryBits == Configuration.EntityCategory.BOUNDARY.getValue() &&
+						contact.getFixtureB().getFilterData().categoryBits == Configuration.EntityCategory.PLAYER.getValue()) ||
 
-                    body.applyForceToCenter(0,MathUtils.random(20,50),true);
-                    body2.applyForceToCenter(0, MathUtils.random(20,50), true);
-                }
-            }
+						(contact.getFixtureA().getFilterData().categoryBits == Configuration.EntityCategory.PLAYER.getValue() &&
+						contact.getFixtureB().getFilterData().categoryBits == Configuration.EntityCategory.BOUNDARY.getValue()))
+				{
 
-            @Override
-            public void endContact(Contact contact) {
-            }
+					Gdx.app.log("Hit Detection", "Collided");
+				}
+			}
 
-            @Override
-            public void preSolve(Contact contact, Manifold oldManifold) {
-            }
+			@Override
+			public void endContact(Contact contact) {
+			}
 
-            @Override
-            public void postSolve(Contact contact, ContactImpulse impulse) {
-            }
-        });
-	       
+			@Override
+			public void preSolve(Contact contact, Manifold oldManifold) {
+			}
+
+			@Override
+			public void postSolve(Contact contact, ContactImpulse impulse) {
+			}
+		});
+
+		float offsetTopBottom = 0f;
+		float offsetLeftRight = 0f;
+		//Bottom
+		this.CreateBoundary(0f, 0 + offsetTopBottom, this.VIRTUAL_WIDTH, 0 + offsetTopBottom, false);
+		//Top
+		this.CreateBoundary(0f, this.VIRTUAL_HEIGHT - offsetTopBottom, this.VIRTUAL_WIDTH, this.VIRTUAL_HEIGHT - offsetTopBottom, false);
+		//Left
+		this.CreateBoundary(0 + offsetLeftRight, 0f, 0 + offsetLeftRight, this.VIRTUAL_HEIGHT, false);
+		//Right
+		this.CreateBoundary(this.VIRTUAL_WIDTH - offsetLeftRight, 0f, this.VIRTUAL_WIDTH - offsetLeftRight, this.VIRTUAL_HEIGHT, false);
+
 		this.debugRenderer = new Box2DDebugRenderer();
 
 		// create agents
-		this.player = new PlayerActor(AnimatedPhysicsActor.ActorType.PLAYER, "agent", this.world, VIRTUAL_WIDTH / 2,
+		this.player = new PlayerActor("agent", this.world, VIRTUAL_WIDTH / 2,
 				VIRTUAL_HEIGHT / 2, 5, 2);
 		this.player.setIdleAnimFrameDuration(0.05f);
 		this.player.setParticleEmitter("exhaust", 0.f, 0.f, true, true);
@@ -108,73 +119,15 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void show() {
-		this.player.getBody().applyForceToCenter(new Vector2(0f,0.5f), true);
+		this.player.getBody().applyForceToCenter(new Vector2(0f, 0.5f), true);
 	}
 
 	@Override
 	public void render(float delta) {
+		Configuration.ElapsedTime += delta;
 		this.world.step(delta, 6, 2);
 
-		if (this.controlPoint != null) {
-			Body playerBody = this.player.getBody();
-			Body controlPointBody = this.controlPoint.getBody();
 
-			// TODO
-			float velocity = 5f; // Your desired velocity of the car.
-			float angle = playerBody.getAngle() + MathUtils.PI/2f; // Body angle in radians.
-			float velX = (float) (MathUtils.cos(angle) * velocity); // X-component.
-			float velY = (float) (MathUtils.sin(angle) * velocity); // Y-component.
-
-			/*
-			 * interpolate from player's angle to desired angle. 0.1f amount of
-			 * desired angle for each iteration next interpolation uses new
-			 * player's angle with some rotation from desired angle which makes
-			 * 0.1f as progress argument possible
-			 */
-
-			/*
-			 * different solution would be to store the player angle and then
-			 * update the progress arg with if statement player angle will only
-			 * be updated when a new controlPoint is spawned //TODO test
-			 * interpolation method
-			 */			
-//			float desiredAngle = this.getDesiredAngle();
-//			// limit the rotation to -180 to 180 degrees
-//			while (desiredAngle < -MathUtils.PI) {
-//				desiredAngle += MathUtils.PI2;
-//			}
-//			while (desiredAngle > MathUtils.PI) {
-//				desiredAngle -= MathUtils.PI2;
-//			}
-//			playerBody.setTransform(playerBody.getPosition(),
-//					MathUtils.lerpAngle(playerBody.getAngle(), desiredAngle, 0.1f));
-//			playerBody.setLinearVelocity(velX, velY);
-			
-			////
-			
-			//First we get the direction we need to travel in
-			Vector2 direction = (controlPointBody.getPosition().cpy().sub(playerBody.getPosition())).nor();
-			Vector2 dir = new Vector2(velX, velY).nor();
-
-			//Multiply it by the maximum speed we're trying to reach
-			Vector2 desiredVelocity = direction.cpy().scl(10f);
-
-			//Subtract the current velocity. This is the calibration force
-			Vector2 steeringForce = desiredVelocity.cpy().sub(playerBody.getLinearVelocity());
-			steeringForce = steeringForce.cpy().limit(0.8f);
-
-			//Apply the steering. The less the mass, the more effective the steering
-			playerBody.applyForceToCenter(steeringForce, true);
-			float heading = playerBody.getLinearVelocity().angleRad() - MathUtils.PI/2f;
-			while (heading < -MathUtils.PI) {
-				heading += MathUtils.PI2;
-			}
-			while (heading > MathUtils.PI) {
-				heading -= MathUtils.PI2;
-			}
-			playerBody.setTransform(playerBody.getPosition(), heading);
-			//playerBody.setTransform(playerBody.getPosition(), MathUtils.lerpAngle(playerBody.getAngle(), this.getDesiredAngle(), 0.1f));
-		}
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -225,47 +178,54 @@ public class GameScreen implements Screen {
 	}
 
 	public void spawnControlPointAtPos(float x, float y) {
+		ControlPointActor playerControlPoint = this.player.getControlPoint();
 		// spawn someting
-		if (this.controlPoint == null) {
-			this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit",
-					this.world, x, y, 2, 2);
-			this.controlPoint.setIdleAnimFrameDuration(0.1f);
-			this.gameStage.addActor(this.controlPoint);
+		if (playerControlPoint == null) {
+			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2);
+			newControlPoint.setIdleAnimFrameDuration(0.1f);
+			this.player.setControlPoint(newControlPoint);
+			this.gameStage.addActor(newControlPoint);
 
-			// start timer
-			this.startTime = System.currentTimeMillis();
 		} else {
-			// if timer 1 sec spawn and reset
-			// animate previous spawnUnit position
-			float elapsedTime = (System.currentTimeMillis() - this.startTime) / 1000f;
+			Vector2 previousBodyPos = playerControlPoint.getBody().getPosition();
+			AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y, 5, 1);
+			explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
+			this.gameStage.addActor(explosionAtPrevPos);
 
-			if (elapsedTime >= 0f) {
-				this.startTime = System.currentTimeMillis();
+			// remove old spawnUnit
+			playerControlPoint.remove();
+			this.world.destroyBody(playerControlPoint.getBody());
 
-				Vector2 previousBodyPos = this.controlPoint.getBodyPosition();
-				AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y,
-						5, 1);
-				explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
-				this.gameStage.addActor(explosionAtPrevPos);
-
-				// remove old spawnUnit
-				this.controlPoint.remove();
-				this.world.destroyBody(this.controlPoint.getBody());
-
-				// add new spawnUnit
-				this.controlPoint = new ControlPointActor(AnimatedPhysicsActor.ActorType.SPAWNUNIT, "spawn_unit",
-						this.world, x, y, 2, 2);
-				this.controlPoint.setIdleAnimFrameDuration(0.1f);
-				this.gameStage.addActor(this.controlPoint);
-			}
+			// add new spawnUnit
+			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2);
+			newControlPoint.setIdleAnimFrameDuration(0.1f);
+			this.player.setControlPoint(newControlPoint);
+			this.gameStage.addActor(newControlPoint);
 		}
 	}
 
-	// TODO test funcs
-	public float getDesiredAngle() {
-		float targetX = this.controlPoint.getBody().getPosition().x - this.player.getBody().getPosition().x;
-		float targetY = this.controlPoint.getBody().getPosition().y - this.player.getBody().getPosition().y;
+	public void CreateBoundary(float x1, float y1, float x2, float y2, Boolean isSensor){
+		Body boundary;
+		//body def
+		BodyDef bodyDef = new BodyDef();
+		bodyDef.type = BodyDef.BodyType.StaticBody;
 
-		return (float) (Math.atan2(targetY, targetX)) - MathUtils.PI/2f;
+		//body shape
+		EdgeShape shape = new EdgeShape();
+		shape.set(x1, y1, x2, y2);
+
+
+		//body fixture
+		FixtureDef fixtureDef = new FixtureDef();
+		fixtureDef.shape = shape;
+		fixtureDef.density = 0.1f;
+		fixtureDef.isSensor = isSensor;
+		fixtureDef.filter.categoryBits = Configuration.EntityCategory.BOUNDARY.getValue();
+		fixtureDef.filter.maskBits = (short) (Configuration.EntityCategory.PLAYER.getValue() | Configuration.EntityCategory.ENEMY_SHIP.getValue() | Configuration.EntityCategory.CONTROL_POINT.getValue());
+
+		boundary = this.world.createBody(bodyDef);
+		boundary.createFixture(fixtureDef);
+
+		shape.dispose();
 	}
 }
