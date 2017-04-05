@@ -9,9 +9,12 @@ import com.badlogic.gdx.physics.box2d.World;
 import com.plv.uberplayground.config.Configuration;
 
 public class PlayerActor extends AnimatedPhysicsActor {
+	private static final float CIRCLE_DISTANCE = 1f;
+	private static final float CIRCLE_RADIUS = 3f;
+	private static final float ANGLE_CHANGE = 180f * MathUtils.PI / 180f;
 	private ControlPointActor controlPoint = null;
 	private float maxSpeed = 8f;
-	private float maxForce = 0.5f;
+	private float maxForce = 0.2f;
 	private float slowingDistance = 2.3f;
 	private float heading;
 
@@ -25,6 +28,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private float wanderRadius = 0.2f;
 	private float wanderRatioDeg = 45f * MathUtils.PI / 180;
 	private float wanderCurrentAngle = (float) (Math.random() * Math.PI * 2);
+	private float wanderAngle = 0;
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
@@ -46,7 +50,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			this.body.setTransform(this.body.getPosition(), this.heading);
 
 			if(this.body.getLinearVelocity().len2() <= 0.1f){
-				Gdx.app.log("000 Vel", "warning");
+				//Gdx.app.log("000 Vel", "warning");
 				//run controlpoint counter
 			}
 		}
@@ -106,15 +110,45 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	}
 
 	public Vector2 Wander(){
-		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor().scl(this.wanderRadius);
-		this.wanderCurrentAngle += (this.wanderRatioDeg * 0.5) - (Math.random() * this.wanderRatioDeg);
-		Vector2 newVector = new Vector2();
-		newVector.x = (float) Math.cos(this.wanderCurrentAngle);
-		newVector.y = (float) Math.sin(this.wanderCurrentAngle);
-		Vector2 wanderForce = newVector;
-		wanderForce.scl(0.2f);
-		circleCenter.limit(0.2f);
-		wanderForce.add(circleCenter);
+		// Calculate the circle center
+		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor();
+		circleCenter.scl(CIRCLE_DISTANCE);
+		//
+		// Calculate the displacement force
+		Vector2 displacement = new Vector2(0, -1);
+		displacement.scl(CIRCLE_RADIUS);
+		//
+		// Randomly change the vector direction
+		// by making it change its current angle
+		float len = displacement.len();
+		displacement.x = (float) Math.cos(this.wanderAngle) * len;
+		displacement.y = (float) Math.sin(this.wanderAngle) * len;
+		//
+		// Change wanderAngle just a bit, so it
+		// won't have the same value in the
+		// next game frame.
+		double ran = MathUtils.random();
+		Gdx.app.log("Random", Double.toString(ran));
+		this.wanderAngle += (ran * ANGLE_CHANGE) - (ANGLE_CHANGE * .5f);
+		//
+		// Finally calculate and return the wander force
+		Vector2 wanderForce;
+		wanderForce = circleCenter.add(displacement);
+		wanderForce.limit(this.maxForce);
 		return wanderForce;
+
+		/******************************************************
+		 * 
+		 ******************************************************/
+//		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor().scl(this.wanderRadius);
+//		this.wanderCurrentAngle += (this.wanderRatioDeg * 0.5) - (Math.random() * this.wanderRatioDeg);
+//		Vector2 newVector = new Vector2();
+//		newVector.x = (float) Math.cos(this.wanderCurrentAngle);
+//		newVector.y = (float) Math.sin(this.wanderCurrentAngle);
+//		Vector2 wanderForce = newVector;
+//		wanderForce.scl(0.2f);
+//		circleCenter.limit(0.2f);
+//		wanderForce.add(circleCenter);
+//		return wanderForce;
 	}
 }
