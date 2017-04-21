@@ -2,33 +2,30 @@ package com.plv.uberplayground.actors;
 
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Filter;
 import com.badlogic.gdx.physics.box2d.World;
 import com.plv.uberplayground.config.Configuration;
 
 public class PlayerActor extends AnimatedPhysicsActor {
-	private static final float CIRCLE_DISTANCE = 1f;
-	private static final float CIRCLE_RADIUS = 3f;
-	private static final float ANGLE_CHANGE = 180f * MathUtils.PI / 180f;
+	private static final float CIRCLE_DISTANCE = 0.5f;
+	private static final float CIRCLE_RADIUS = 1f;
+	private static final float ANGLE_CHANGE = 15f * MathUtils.PI / 180f;
 	private ControlPointActor controlPoint = null;
 	private float maxSpeed = 8f;
-	private float maxForce = 0.2f;
+	private float maxForce = 0.5f;
 	private float slowingDistance = 2.3f;
 	private float heading;
 
-	//	// The distance to project the wandering circle
-	//	private float wanderDistance = 0.1f;
-	//	// The radius of the wandering circle
-	//	private float wanderRadius = 0.01f;
-	//	// Small noise added to the wander target
-	//	private float wanderJitter = 0.3f;
-
-	private float wanderRadius = 0.2f;
-	private float wanderRatioDeg = 45f * MathUtils.PI / 180;
-	private float wanderCurrentAngle = (float) (Math.random() * Math.PI * 2);
 	private float wanderAngle = 0;
+	private Vector2 vWanderTargert = new Vector2();
+	private ShapeRenderer shapeRenderer = new ShapeRenderer();
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
@@ -48,7 +45,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			this.body.applyForceToCenter(steeringForce, true);
 			this.CalculateHeading();
 			this.body.setTransform(this.body.getPosition(), this.heading);
-
+			
 			if(this.body.getLinearVelocity().len2() <= 0.1f){
 				//Gdx.app.log("000 Vel", "warning");
 				//run controlpoint counter
@@ -108,34 +105,88 @@ public class PlayerActor extends AnimatedPhysicsActor {
 
 		return steeringForce;
 	}
-
+	
 	public Vector2 Wander(){
-		// Calculate the circle center
-		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor();
-		circleCenter.scl(CIRCLE_DISTANCE);
-		//
-		// Calculate the displacement force
-		Vector2 displacement = new Vector2(0, -1);
-		displacement.scl(CIRCLE_RADIUS);
-		//
-		// Randomly change the vector direction
-		// by making it change its current angle
-		float len = displacement.len();
-		displacement.x = (float) Math.cos(this.wanderAngle) * len;
-		displacement.y = (float) Math.sin(this.wanderAngle) * len;
-		//
-		// Change wanderAngle just a bit, so it
-		// won't have the same value in the
-		// next game frame.
-		double ran = MathUtils.random();
-		Gdx.app.log("Random", Double.toString(ran));
-		this.wanderAngle += (ran * ANGLE_CHANGE) - (ANGLE_CHANGE * .5f);
-		//
-		// Finally calculate and return the wander force
+		
+		// Add a random vector to the vWanderTarget
+		this.vWanderTargert.x += (MathUtils.random() * 2 - 1) * 200f * 0.001f;
+		this.vWanderTargert.y += (MathUtils.random() * 2 - 1) * 200f * 0.001f;
+		
+		// Then normalize it and scale it to the wanderRadius
+		this.vWanderTargert.nor().scl(CIRCLE_RADIUS);
+
+		// Set vForce to the current heading, scale it wanderDistance, add the vWanderTarget and subtract the velocity
 		Vector2 wanderForce;
-		wanderForce = circleCenter.add(displacement);
-		wanderForce.limit(this.maxForce);
+		wanderForce = ((this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.vWanderTargert).sub(this.body.getLinearVelocity().cpy()));
+		
+		shapeRenderer.setColor(Color.RED);
+		shapeRenderer.begin(ShapeType.Line);
+		Matrix4 mat = this.getStage().getCamera().combined.cpy();
+		shapeRenderer.setProjectionMatrix(mat);
+		Vector2 circleCenter = (this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.body.getPosition());
+		shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
+		shapeRenderer.end();
+		
+		shapeRenderer.setColor(Color.RED);
+		shapeRenderer.begin(ShapeType.Line);
+		shapeRenderer.setProjectionMatrix(mat);
+		shapeRenderer.line(circleCenter, circleCenter.cpy().add(this.vWanderTargert));
+		shapeRenderer.end();
+		
+		shapeRenderer.setColor(Color.GREEN);
+		shapeRenderer.begin(ShapeType.Filled);
+		shapeRenderer.setProjectionMatrix(mat);
+		shapeRenderer.circle((circleCenter.cpy().add(this.vWanderTargert)).x, (circleCenter.cpy().add(this.vWanderTargert)).y, 0.1f, 20);
+		shapeRenderer.end();
+		
 		return wanderForce;
+		
+//		// Calculate the circle center
+//		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor();
+//		circleCenter.scl(CIRCLE_DISTANCE);
+//		circleCenter.add(this.body.getPosition());
+//		
+//		shapeRenderer.setColor(Color.RED);
+//		shapeRenderer.begin(ShapeType.Line);
+//		Matrix4 mat = this.getStage().getCamera().combined.cpy();
+//		shapeRenderer.setProjectionMatrix(mat);
+//		shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
+//		shapeRenderer.end();
+//		//
+//		// Calculate the displacement force
+//		Vector2 displacement = new Vector2(0, -1);
+//		displacement.scl(CIRCLE_RADIUS);
+//		//
+//		// Randomly change the vector direction
+//		// by making it change its current angle
+//		float len = displacement.len();
+//		displacement.x = (float) Math.cos(this.wanderAngle) * len;
+//		displacement.y = (float) Math.sin(this.wanderAngle) * len;
+//		//
+//		// Change wanderAngle just a bit, so it
+//		// won't have the same value in the
+//		// next game frame.
+//		double ran = MathUtils.random();
+//		this.wanderAngle += (ran * ANGLE_CHANGE) - (ANGLE_CHANGE * .5f);
+//		//
+//		shapeRenderer.setColor(Color.RED);
+//		shapeRenderer.begin(ShapeType.Line);
+//		shapeRenderer.setProjectionMatrix(mat);
+//		shapeRenderer.line(circleCenter, circleCenter.cpy().add(displacement));
+//		shapeRenderer.end();
+//		
+//		shapeRenderer.setColor(Color.GREEN);
+//		shapeRenderer.begin(ShapeType.Filled);
+//		shapeRenderer.setProjectionMatrix(mat);
+//		shapeRenderer.circle((circleCenter.cpy().add(displacement)).x, (circleCenter.cpy().add(displacement)).y, 0.1f, 20);
+//		shapeRenderer.end();
+//		
+//		// Finally calculate and return the wander force
+//		Vector2 wanderForce;
+//		wanderForce = circleCenter.cpy().add(displacement);
+//		//wanderForce.sub(this.body.getLinearVelocity().cpy());
+//		wanderForce.limit(this.maxForce);
+//		return wanderForce;
 
 		/******************************************************
 		 * 
@@ -150,5 +201,9 @@ public class PlayerActor extends AnimatedPhysicsActor {
 //		circleCenter.limit(0.2f);
 //		wanderForce.add(circleCenter);
 //		return wanderForce;
+	}
+	
+	public Vector2 WallAvoidance(){
+		return vWanderTargert;
 	}
 }

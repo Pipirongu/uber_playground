@@ -119,7 +119,7 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void show() {
-		this.player.getBody().applyForceToCenter(new Vector2(0f, 0.5f), true);
+		//this.player.getBody().applyForceToCenter(new Vector2(0f, 0.5f), true);
 	}
 
 	@Override
