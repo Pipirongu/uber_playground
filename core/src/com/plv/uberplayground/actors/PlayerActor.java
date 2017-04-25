@@ -7,25 +7,33 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Matrix3;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Filter;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.utils.Array;
 import com.plv.uberplayground.config.Configuration;
 
 public class PlayerActor extends AnimatedPhysicsActor {
-	private static final float CIRCLE_DISTANCE = 0.5f;
-	private static final float CIRCLE_RADIUS = 1f;
-	private static final float ANGLE_CHANGE = 15f * MathUtils.PI / 180f;
 	private ControlPointActor controlPoint = null;
 	private float maxSpeed = 8f;
 	private float maxForce = 0.5f;
 	private float slowingDistance = 2.3f;
 	private float heading;
 
+	//Wander vars
+	private static final float CIRCLE_DISTANCE = 0.5f;
+	private static final float CIRCLE_RADIUS = 0.8f;
+	private static final float ANGLE_CHANGE = 15f * MathUtils.PI / 180f;
 	private float wanderAngle = 0;
 	private Vector2 vWanderTargert = new Vector2();
+	
 	private ShapeRenderer shapeRenderer = new ShapeRenderer();
+	
+	//Wall avoidance vars
+	private Array<Vector2> feelers;
+	private float wallDetectionFeelerLength = 1f;
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
@@ -34,6 +42,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		filter.categoryBits = Configuration.EntityCategory.PLAYER.getValue();
 		filter.maskBits = Configuration.EntityCategory.BOUNDARY.getValue();
 		this.body.getFixtureList().get(0).setFilterData(filter);
+		
+		this.feelers = new Array<Vector2>(3);
 	}
 
 	@Override
@@ -41,7 +51,14 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		super.act(delta);
 
 		if (this.controlPoint != null) {
-			Vector2 steeringForce = this.Wander();
+			Vector2 wallSteering = this.WallAvoidance(Configuration.Walls);
+			Vector2 wanderSteering = this.Wander();
+			
+			Vector2 steeringForce = wallSteering.cpy().add(wanderSteering);
+			//this.WallAvoidance(Configuration.Walls);
+			for(int i = 0;i<Configuration.Walls.size;i++){
+				Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
+			}
 			this.body.applyForceToCenter(steeringForce, true);
 			this.CalculateHeading();
 			this.body.setTransform(this.body.getPosition(), this.heading);
@@ -92,9 +109,9 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		return steeringForce;
 	}
 
-	public Vector2 Seek(){
+	public Vector2 Seek(Vector2 target){
 		// First we get the direction we need to travel in
-		Vector2 desiredVelocity = (this.controlPoint.getBody().getPosition().cpy().sub(this.body.getPosition()));
+		Vector2 desiredVelocity = target.sub(this.body.getPosition());//(this.controlPoint.getBody().getPosition().cpy().sub(this.body.getPosition()));
 		desiredVelocity.nor();
 		desiredVelocity.scl(this.maxSpeed);
 
@@ -116,30 +133,37 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.vWanderTargert.nor().scl(CIRCLE_RADIUS);
 
 		// Set vForce to the current heading, scale it wanderDistance, add the vWanderTarget and subtract the velocity
-		Vector2 wanderForce;
-		wanderForce = ((this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.vWanderTargert).sub(this.body.getLinearVelocity().cpy()));
+		Vector2 wanderForce = ((this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.vWanderTargert).sub(this.body.getLinearVelocity().cpy()));
 		
-		shapeRenderer.setColor(Color.RED);
-		shapeRenderer.begin(ShapeType.Line);
-		Matrix4 mat = this.getStage().getCamera().combined.cpy();
-		shapeRenderer.setProjectionMatrix(mat);
-		Vector2 circleCenter = (this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.body.getPosition());
-		shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
-		shapeRenderer.end();
+        //move the target in front of the character
+		Vector2 heading = this.body.getPosition().cpy().sub(vWanderTargert);
+		Vector2 right = new Vector2(-heading.y, heading.x).nor();
+        Vector2 targetPosition = (this.body.getPosition().cpy().add(right.cpy().scl(CIRCLE_DISTANCE))).add(vWanderTargert);
 		
-		shapeRenderer.setColor(Color.RED);
-		shapeRenderer.begin(ShapeType.Line);
-		shapeRenderer.setProjectionMatrix(mat);
-		shapeRenderer.line(circleCenter, circleCenter.cpy().add(this.vWanderTargert));
-		shapeRenderer.end();
-		
-		shapeRenderer.setColor(Color.GREEN);
-		shapeRenderer.begin(ShapeType.Filled);
-		shapeRenderer.setProjectionMatrix(mat);
-		shapeRenderer.circle((circleCenter.cpy().add(this.vWanderTargert)).x, (circleCenter.cpy().add(this.vWanderTargert)).y, 0.1f, 20);
-		shapeRenderer.end();
-		
+        if(Configuration.isDebug){
+	        //debug draw
+			shapeRenderer.setColor(Color.RED);
+			shapeRenderer.begin(ShapeType.Line);
+			Matrix4 mat = this.getStage().getCamera().combined.cpy();
+			shapeRenderer.setProjectionMatrix(mat);
+			Vector2 circleCenter = (this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.body.getPosition());
+			shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
+			shapeRenderer.end();
+			
+			shapeRenderer.setColor(Color.RED);
+			shapeRenderer.begin(ShapeType.Line);
+			shapeRenderer.setProjectionMatrix(mat);
+			shapeRenderer.line(circleCenter, circleCenter.cpy().add(this.vWanderTargert));
+			shapeRenderer.end();
+			
+			shapeRenderer.setColor(Color.GREEN);
+			shapeRenderer.begin(ShapeType.Filled);
+			shapeRenderer.setProjectionMatrix(mat);
+			shapeRenderer.circle((circleCenter.cpy().add(this.vWanderTargert)).x, (circleCenter.cpy().add(this.vWanderTargert)).y, 0.1f, 20);
+			shapeRenderer.end();
+        }
 		return wanderForce;
+		//return this.Seek(targetPosition);
 		
 //		// Calculate the circle center
 //		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor();
@@ -203,7 +227,166 @@ public class PlayerActor extends AnimatedPhysicsActor {
 //		return wanderForce;
 	}
 	
-	public Vector2 WallAvoidance(){
-		return vWanderTargert;
+	//compares two real numbers. Returns true if they are equal
+	private Boolean isEqual(float a, float b)
+	{
+		if (Math.abs((a-b)) < 1E-12)
+		{
+			return true;
+		}
+			return false;
+	}
+	
+	private float Vec2DDistance(Vector2 v1, Vector2 v2)
+	{
+		float ySeparation = v2.y - v1.y;
+		float xSeparation = v2.x - v1.x;
+		
+		return (float) Math.sqrt((ySeparation*ySeparation + xSeparation*xSeparation));
+	}
+	
+	private Boolean LineIntersection2D(Vector2 A, Vector2 B, Vector2 C, Vector2 D, float dist, Vector2 point)
+	{
+		
+		float rTop = (A.y-C.y)*(D.x-C.x)-(A.x-C.x)*(D.y-C.y);
+		float rBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
+		
+		float sTop = (A.y-C.y)*(B.x-A.x)-(A.x-C.x)*(B.y-A.y);
+		float sBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
+		
+		if ( (rBot == 0) || (sBot == 0))
+		{
+			//lines are parallel
+			return false;
+		}
+		
+		float r = rTop/rBot;
+		float s = sTop/sBot;
+		
+		if( (r > 0) && (r < 1) && (s > 0) && (s < 1) )
+		{
+			dist = Vec2DDistance(A,B) * r;
+			
+			point = A.add(((B.sub(A))).scl(r));
+			
+			return true;
+		}
+		
+		else
+		{
+			dist = 0;
+		
+			return false;
+		}
+	}
+	
+	public Vector2 WallAvoidance(Array<Wall> walls){ //input wall array
+		//create feelers 3x
+		this.CreateFeelers();
+		
+		//debug draw feelers
+		shapeRenderer.setColor(Color.BLUE);
+		shapeRenderer.begin(ShapeType.Line);
+		Matrix4 mat = this.getStage().getCamera().combined.cpy();
+		shapeRenderer.setProjectionMatrix(mat);
+		shapeRenderer.line(this.body.getPosition(),this.feelers.get(0));
+		shapeRenderer.end();
+		
+		shapeRenderer.setColor(Color.BLUE);
+		shapeRenderer.begin(ShapeType.Line);
+		shapeRenderer.setProjectionMatrix(mat);
+		shapeRenderer.line(this.body.getPosition(),this.feelers.get(1));
+		shapeRenderer.end();
+		
+		shapeRenderer.setColor(Color.BLUE);
+		shapeRenderer.begin(ShapeType.Line);
+		shapeRenderer.setProjectionMatrix(mat);
+		shapeRenderer.line(this.body.getPosition(),this.feelers.get(2));
+		shapeRenderer.end();
+		
+		
+		//wall avoidance code starts here
+		float DistToThisIP    = 0.0f;
+		float DistToClosestIP = Float.MAX_VALUE;
+		
+		//this will hold an index into the vector of walls
+		int ClosestWall = -1;
+		
+		Vector2 SteeringForce = new Vector2();
+		Vector2 point = new Vector2();      //used for storing temporary info
+		Vector2 ClosestPoint = new Vector2();  //holds the closest intersection point
+		
+		//examine each feeler in turn
+		for (int flr=0; flr<this.feelers.size; ++flr)
+		{
+			//run through each wall checking for any intersection points
+			for (int w=0; w<walls.size; ++w)
+			{
+				if (LineIntersection2D(this.body.getPosition(), this.feelers.get(flr), walls.get(w).From(), walls.get(w).To(), DistToThisIP, point))
+				{
+					//is this the closest found so far? If so keep a record
+					if (DistToThisIP < DistToClosestIP)
+					{
+						DistToClosestIP = DistToThisIP;
+						ClosestWall = w;
+						ClosestPoint = point;
+					}
+				}
+			}//next wall
+		
+		  
+			//if an intersection point has been detected, calculate a force  
+			//that will direct the agent away
+			if (ClosestWall >=0)
+			{
+				//calculate by what distance the projected position of the agent
+				//will overshoot the wall
+				Vector2 OverShoot = this.feelers.get(flr).cpy().sub(ClosestPoint);
+			
+				//create a force in the direction of the wall normal, with a 
+				//magnitude of the overshoot
+				SteeringForce = walls.get(ClosestWall).Normal().cpy().scl(OverShoot.len());
+			}
+		
+		}//next feeler
+		
+		return SteeringForce;
+	}
+	
+	/*
+	 * Create feelers for Wall Avoidance
+	 * 
+	 * */
+	private void CreateFeelers(){
+		this.feelers.clear();
+		float HalfPi = MathUtils.PI/2f;
+		
+		Vector2 agent_position = this.body.getPosition().cpy();
+		Vector2 agent_heading = this.body.getLinearVelocity().cpy().nor();
+		//feeler pointing straight in front
+		this.feelers.insert(0, agent_position.cpy().add(agent_heading.cpy().scl(this.wallDetectionFeelerLength)));
+		
+		//feeler to left
+		Vector2 temp = agent_heading.cpy();
+		Vec2DRotateAroundOrigin(temp, HalfPi * 3.5f);
+		this.feelers.insert(1, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength/2.0f)));
+		
+		//feeler to right
+		temp = agent_heading.cpy();
+		Vec2DRotateAroundOrigin(temp, HalfPi * 0.5f);
+		this.feelers.insert(2, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength/2.0f)));
+	}
+	
+	/*
+	 * Used to rotate Wall Avoidance Feelers around own axis
+	 * 
+	 * */
+	private void Vec2DRotateAroundOrigin(Vector2 v, float ang){
+		Matrix3 matTransform = new Matrix3();
+		matTransform.idt();
+		matTransform.rotateRad(ang);
+		
+		v.mul(matTransform);
+		
 	}
 }

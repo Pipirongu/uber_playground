@@ -17,11 +17,13 @@ import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FillViewport;
 import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.AnimatedActor;
 import com.plv.uberplayground.actors.ControlPointActor;
 import com.plv.uberplayground.actors.PlayerActor;
+import com.plv.uberplayground.actors.Wall;
 import com.plv.uberplayground.config.Configuration;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
 
@@ -41,6 +43,8 @@ public class GameScreen implements Screen {
 	// stage for actors, and also playfield to spawn 'targets'
 	private Stage gameStage;
 	private PlayerActor player;
+	public Array<Wall>Walls = new Array<Wall>();
+	
 	private final UberPlayground app;
 
 	public GameScreen(final UberPlayground app) {
@@ -94,6 +98,9 @@ public class GameScreen implements Screen {
 
 		this.debugRenderer = new Box2DDebugRenderer();
 
+		//Create Wall data for Wall Avoidance
+		this.CreateWalls();
+		
 		// create agents
 		this.player = new PlayerActor("agent", this.world, VIRTUAL_WIDTH / 2,
 				VIRTUAL_HEIGHT / 2, 5, 2);
@@ -119,7 +126,7 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void show() {
-		//this.player.getBody().applyForceToCenter(new Vector2(0f, 0.5f), true);
+		this.player.getBody().applyForceToCenter(new Vector2(0f, 0.5f), true);
 	}
 
 	@Override
@@ -227,5 +234,80 @@ public class GameScreen implements Screen {
 		boundary.createFixture(fixtureDef);
 
 		shape.dispose();
+	}
+	
+	public void CreateWalls(){
+		
+		//create the walls  
+		float bordersize = 1f;
+		float CornerSize = 0f;
+		
+		int m_cyClient = this.VIRTUAL_HEIGHT;
+		int m_cxClient = this.VIRTUAL_WIDTH;
+		float vDist = m_cyClient-2*bordersize;
+		float hDist = m_cxClient-2*bordersize;
+
+//		float offsetTopBottom = 0.5f;
+//		Vector2 w1A = new Vector2(0, this.VIRTUAL_HEIGHT - offsetTopBottom);
+//		Vector2 w1B = new Vector2(this.VIRTUAL_WIDTH, this.VIRTUAL_HEIGHT - offsetTopBottom);
+//		
+//		Vector2 w2A = new Vector2(0f, 0 + offsetTopBottom);
+//		Vector2 w2B = new Vector2(this.VIRTUAL_WIDTH, 0 + offsetTopBottom);
+
+		Vector2 w1A = new Vector2(hDist*CornerSize+bordersize, bordersize);
+		Vector2 w1B = new Vector2(m_cxClient-bordersize-hDist*CornerSize, bordersize);
+		Vector2 w2A = new Vector2(m_cxClient-bordersize, bordersize+vDist*CornerSize);
+		Vector2 w2B = new Vector2(m_cxClient-bordersize, m_cyClient-bordersize-vDist*CornerSize);
+
+		Vector2 w3A = new Vector2(m_cxClient-bordersize-hDist*CornerSize, m_cyClient-bordersize);
+		Vector2 w3B = new Vector2(hDist*CornerSize+bordersize, m_cyClient-bordersize);
+		Vector2 w4A = new Vector2(bordersize, m_cyClient-bordersize-vDist*CornerSize);
+		Vector2 w4B = new Vector2(bordersize, bordersize+vDist*CornerSize);
+		  
+		
+		Configuration.Walls.add(new Wall(w1A, w1B));
+		//Configuration.Walls.add(new Wall(w2A, w2B));
+		Configuration.Walls.add(new Wall(w1B, w2A));
+		Configuration.Walls.add(new Wall(w2A, w2B));
+		Configuration.Walls.add(new Wall(w2B, w3A));
+		Configuration.Walls.add(new Wall(w3A, w3B));
+		Configuration.Walls.add(new Wall(w3B, w4A));
+		Configuration.Walls.add(new Wall(w4A, w4B));
+		Configuration.Walls.add(new Wall(w4B, w1A));
+		
+		
+//		//everything except last one
+//		for (int w=0; w<NumWallVerts-1; ++w)
+//		{
+//		  m_Walls.push_back(Wall2D(walls[w], walls[w+1]));
+//		}
+//		
+//		//last one and first one
+//		m_Walls.push_back(Wall2D(walls[NumWallVerts-1], walls[0]));
+		
+		
+		
+//		Body boundary;
+//		//body def
+//		BodyDef bodyDef = new BodyDef();
+//		bodyDef.type = BodyDef.BodyType.StaticBody;
+//
+//		//body shape
+//		EdgeShape shape = new EdgeShape();
+//		shape.set(x1, y1, x2, y2);
+//
+//
+//		//body fixture
+//		FixtureDef fixtureDef = new FixtureDef();
+//		fixtureDef.shape = shape;
+//		fixtureDef.density = 0.1f;
+//		fixtureDef.isSensor = isSensor;
+//		fixtureDef.filter.categoryBits = Configuration.EntityCategory.BOUNDARY.getValue();
+//		fixtureDef.filter.maskBits = (short) (Configuration.EntityCategory.PLAYER.getValue() | Configuration.EntityCategory.ENEMY_SHIP.getValue() | Configuration.EntityCategory.CONTROL_POINT.getValue());
+//
+//		boundary = this.world.createBody(bodyDef);
+//		boundary.createFixture(fixtureDef);
+//
+//		shape.dispose();
 	}
 }
