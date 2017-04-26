@@ -1,7 +1,6 @@
 package com.plv.uberplayground.actors;
 
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.Array;
 
 public class Smoother {
 	private Vector2[] history;
@@ -32,7 +31,6 @@ public class Smoother {
 	    //now to calculate the average of the history list
 	    Vector2 sum = this.zeroValue.cpy();
 
-	    int size = this.history.length;
 	    for (int i = 0; i < this.history.length; i++)
 	    {
 	    	sum.add(this.history[i].cpy());

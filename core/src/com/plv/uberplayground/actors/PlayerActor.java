@@ -36,7 +36,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private Vector2 steeringForce = new Vector2();
 	
 	private float heading;
-	private Vector2 smoothedHeading = new Vector2();
+	private float wanderOrientation = 0;
 	private Smoother smoother = new Smoother(10, new Vector2(0f, 0f));
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
@@ -56,15 +56,14 @@ public class PlayerActor extends AnimatedPhysicsActor {
 
 		if (this.controlPoint != null) {
 			Vector2 steeringForce = this.CalculateSteeringForce();
-			Gdx.app.log("SteeringForce", Float.toString(steeringForce.len()));
+			//Gdx.app.log("SteeringForce", Float.toString(steeringForce.len()));
 
 			for(int i = 0;i<Configuration.Walls.size;i++){
 				Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
 			}
 			this.body.applyForceToCenter(this.steeringForce, true);
-			//this.CalculateHeading();
-			Vector2 smoff = this.smoother.Update(this.body.getLinearVelocity().cpy());
-			this.heading = smoff.angleRad() - MathUtils.PI / 2f;
+			Vector2 smoothedHeading = this.smoother.Update(this.body.getLinearVelocity().cpy());
+			this.CalculateHeading(smoothedHeading);
 			this.body.setTransform(this.body.getPosition(), this.heading);
 		}
 	}
@@ -77,16 +76,16 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.controlPoint = controlPoint;
 	}
 
-	public void CalculateHeading(){
-		if(this.body.getLinearVelocity().len2() > 0.00000001f){
-			this.heading = this.body.getLinearVelocity().angleRad() - MathUtils.PI / 2f;
+	public void CalculateHeading(Vector2 smoothedHeading){
+		//if(this.body.getLinearVelocity().len2() > 0.00000001f){
+			this.heading = smoothedHeading.angleRad() - MathUtils.PI / 2f;
 			while (this.heading < -MathUtils.PI) {
 				this.heading += MathUtils.PI2;
 			}
 			while (this.heading > MathUtils.PI) {
 				this.heading -= MathUtils.PI2;
 			}
-		}
+		//}
 	}
 	
 	public Vector2 CalculateSteeringForce(){
@@ -158,12 +157,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		// First we get the direction we need to travel in
 		Vector2 desiredVelocity = target.sub(this.body.getPosition());//(this.controlPoint.getBody().getPosition().cpy().sub(this.body.getPosition()));
 		desiredVelocity.nor();
-		desiredVelocity.scl(this.maxSpeed);
+		//desiredVelocity.scl(this.maxSpeed);
 
 		// Subtract the current velocity. This is the calibration force
 		Vector2 steeringForce = new Vector2(0,0);
 		steeringForce = desiredVelocity.cpy().sub(this.body.getLinearVelocity());
-		steeringForce.limit(this.maxForce);
+		//steeringForce.limit(this.maxForce);
 
 		return steeringForce;
 	}
@@ -181,10 +180,20 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Vector2 wanderForce = ((this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.vWanderTargert).sub(this.body.getLinearVelocity().cpy()));
 
 		//move the target in front of the character
-		Vector2 heading = this.body.getPosition().cpy().sub(this.vWanderTargert);
-		Vector2 right = new Vector2(-heading.y, heading.x).nor();
-		Vector2 targetPosition = (this.body.getPosition().cpy().add(right.cpy().scl(CIRCLE_DISTANCE))).add(this.vWanderTargert);
+//		Vector2 heading = this.body.getPosition().cpy().sub(this.vWanderTargert);
+//		Vector2 right = new Vector2(-heading.y, heading.x).nor();
+//		Vector2 targetPosition = (this.body.getPosition().cpy().add(right.cpy().scl(CIRCLE_DISTANCE))).add(this.vWanderTargert);
 
+		Gdx.app.log("SteeringForce", Float.toString(RandomBinomial()));
+		wanderOrientation += RandomBinomial() * 0.1f;
+		
+		float angle = this.body.getLinearVelocity().angleRad();
+		Vector2 orientationToVector = new Vector2(MathUtils.cos(angle), MathUtils.sin(angle));
+		Vector2 orientationToVector1 = new Vector2(MathUtils.cos(angle + wanderOrientation), MathUtils.sin(angle + wanderOrientation));
+		Vector2 targetPosition = this.body.getPosition().cpy().add((orientationToVector.cpy().nor().scl(CIRCLE_DISTANCE)));
+
+		targetPosition.add(orientationToVector1.nor().scl(CIRCLE_RADIUS));
+		
 		if(Configuration.isDebug){
 			//debug draw
 			this.shapeRenderer.setColor(Color.RED);
@@ -207,8 +216,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			this.shapeRenderer.circle((circleCenter.cpy().add(this.vWanderTargert)).x, (circleCenter.cpy().add(this.vWanderTargert)).y, 0.1f, 20);
 			this.shapeRenderer.end();
 		}
-		return wanderForce;
-		//return this.Seek(targetPosition);
+		//return wanderForce;
+		return this.Seek(targetPosition);
 
 		//		// Calculate the circle center
 		//		Vector2 circleCenter = this.body.getLinearVelocity().cpy().nor();
@@ -422,6 +431,10 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		matTransform.rotateRad(ang);
 	
 		v.mul(matTransform);
+	}
 	
+	/* Returns a random number between -1 and 1. Values around zero are more likely. */
+	private float RandomBinomial() {
+		return MathUtils.random() - MathUtils.random();
 	}
 }
