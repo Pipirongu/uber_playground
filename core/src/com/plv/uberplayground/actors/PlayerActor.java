@@ -19,7 +19,6 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private float maxSpeed = 8f;
 	private float maxForce = 0.5f;
 	private float slowingDistance = 2.3f;
-	private float heading;
 
 	//Wander vars
 	private static final float CIRCLE_DISTANCE = 0.5f;
@@ -33,6 +32,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	//Wall avoidance vars
 	private Array<Vector2> feelers;
 	private float wallDetectionFeelerLength = 1f;
+	
+	private Vector2 steeringForce = new Vector2();
+	
+	private float heading;
+	private Vector2 smoothedHeading = new Vector2();
+	private Smoother smoother = new Smoother(10, new Vector2(0f, 0f));
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
@@ -50,24 +55,17 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		super.act(delta);
 
 		if (this.controlPoint != null) {
-			Vector2 wallSteering = this.WallAvoidance(Configuration.Walls).scl(500f);
-			Vector2 wanderSteering = this.Wander().scl(1f);
+			Vector2 steeringForce = this.CalculateSteeringForce();
+			Gdx.app.log("SteeringForce", Float.toString(steeringForce.len()));
 
-			Vector2 steeringForce = (wallSteering.cpy().add(wanderSteering)).limit(this.maxForce);
-			Gdx.app.log("smomethign", Float.toString(steeringForce.len()));
-
-			//this.WallAvoidance(Configuration.Walls);
 			for(int i = 0;i<Configuration.Walls.size;i++){
 				Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
 			}
-			this.body.applyForceToCenter(steeringForce, true);
-			this.CalculateHeading();
+			this.body.applyForceToCenter(this.steeringForce, true);
+			//this.CalculateHeading();
+			Vector2 smoff = this.smoother.Update(this.body.getLinearVelocity().cpy());
+			this.heading = smoff.angleRad() - MathUtils.PI / 2f;
 			this.body.setTransform(this.body.getPosition(), this.heading);
-
-			if(this.body.getLinearVelocity().len2() <= 0.1f){
-				//Gdx.app.log("000 Vel", "warning");
-				//run controlpoint counter
-			}
 		}
 	}
 
@@ -90,7 +88,53 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			}
 		}
 	}
+	
+	public Vector2 CalculateSteeringForce(){
+		this.steeringForce.setZero();
+		Vector2 force = new Vector2();
+		
+		//if wall avoidance on
+		force = this.WallAvoidance(Configuration.Walls).scl(10f);
+		if (!AccumulateSteeringForce(this.steeringForce, force)){
+			return force;
+		}
+		
+		//if wander on
+		force = this.Wander().scl(1f);
+		if (!AccumulateSteeringForce(this.steeringForce, force)){
+			return force;
+		}
+		
+		return this.steeringForce;
+	}
 
+	private Boolean AccumulateSteeringForce(Vector2 totalSteering, Vector2 forceToAdd){	
+		//calculate how much steering force the vehicle has used so far
+		float MagnitudeSoFar = totalSteering.len();
+		//calculate how much steering force remains to be used by this vehicle
+		float MagnitudeRemaining = this.maxForce - MagnitudeSoFar;
+		//return false if there is no more force left to use
+		if (MagnitudeRemaining <= 0.000000001f){
+			return false;
+		}
+		//calculate the magnitude of the force we want to add
+		float MagnitudeToAdd = forceToAdd.len();
+		//if the magnitude of the sum of ForceToAdd and the running total
+		//does not exceed the maximum force available to this vehicle, just
+		//add together. Otherwise add as much of the ForceToAdd vector as
+		//possible without going over the max.
+		if (MagnitudeToAdd < MagnitudeRemaining)
+		{
+			totalSteering.add(forceToAdd);
+		}
+		else
+		{
+			//add it to the steering force
+			totalSteering.add(((forceToAdd.cpy().nor()).scl(MagnitudeRemaining)));
+		}
+		return true;
+	}
+	
 	//returns steering force
 	public Vector2 Arrive(){
 		// First we get the direction we need to travel in
@@ -228,63 +272,10 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		//		return wanderForce;
 	}
 
-	//compares two real numbers. Returns true if they are equal
-	private Boolean isEqual(float a, float b)
-	{
-		if (Math.abs((a-b)) < 1E-12)
-		{
-			return true;
-		}
-		return false;
-	}
-
-	private float Vec2DDistance(Vector2 v1, Vector2 v2)
-	{
-		float ySeparation = v2.y - v1.y;
-		float xSeparation = v2.x - v1.x;
-
-		return (float) Math.sqrt((ySeparation*ySeparation + xSeparation*xSeparation));
-	}
-
-	private Boolean LineIntersection2D(Vector2 A, Vector2 B, Vector2 C, Vector2 D, float dist, Vector2 point)
-	{
-
-		float rTop = (A.y-C.y)*(D.x-C.x)-(A.x-C.x)*(D.y-C.y);
-		float rBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
-
-		float sTop = (A.y-C.y)*(B.x-A.x)-(A.x-C.x)*(B.y-A.y);
-		float sBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
-
-		if ( (rBot == 0) || (sBot == 0))
-		{
-			//lines are parallel
-			return false;
-		}
-
-		float r = rTop/rBot;
-		float s = sTop/sBot;
-
-		if( (r > 0) && (r < 1) && (s > 0) && (s < 1) )
-		{
-			dist = this.Vec2DDistance(A,B) * r;
-
-			point = A.add(((B.sub(A))).scl(r));
-
-			return true;
-		}
-
-		else
-		{
-			dist = 0;
-
-			return false;
-		}
-	}
-
 	public Vector2 WallAvoidance(Array<Wall> walls){ //input wall array
 		//create feelers 3x
 		this.CreateFeelers();
-
+	
 		//debug draw feelers
 		this.shapeRenderer.setColor(Color.BLUE);
 		this.shapeRenderer.begin(ShapeType.Line);
@@ -292,31 +283,31 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.shapeRenderer.setProjectionMatrix(mat);
 		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(0));
 		this.shapeRenderer.end();
-
+	
 		this.shapeRenderer.setColor(Color.BLUE);
 		this.shapeRenderer.begin(ShapeType.Line);
 		this.shapeRenderer.setProjectionMatrix(mat);
 		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(1));
 		this.shapeRenderer.end();
-
+	
 		this.shapeRenderer.setColor(Color.BLUE);
 		this.shapeRenderer.begin(ShapeType.Line);
 		this.shapeRenderer.setProjectionMatrix(mat);
 		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(2));
 		this.shapeRenderer.end();
-
-
+	
+	
 		//wall avoidance code starts here
 		float DistToThisIP    = 0.0f;
 		float DistToClosestIP = Float.MAX_VALUE;
-
+	
 		//this will hold an index into the vector of walls
 		int ClosestWall = -1;
-
+	
 		Vector2 SteeringForce = new Vector2();
 		Vector2 point = new Vector2();      //used for storing temporary info
 		Vector2 ClosestPoint = new Vector2();  //holds the closest intersection point
-
+	
 		//examine each feeler in turn
 		for (int flr=0; flr<this.feelers.size; ++flr)
 		{
@@ -334,8 +325,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 					}
 				}
 			}//next wall
-
-
+	
+	
 			//if an intersection point has been detected, calculate a force
 			//that will direct the agent away
 			if (ClosestWall >=0)
@@ -343,14 +334,14 @@ public class PlayerActor extends AnimatedPhysicsActor {
 				//calculate by what distance the projected position of the agent
 				//will overshoot the wall
 				Vector2 OverShoot = this.feelers.get(flr).cpy().sub(ClosestPoint);
-
+	
 				//create a force in the direction of the wall normal, with a
 				//magnitude of the overshoot
 				SteeringForce = walls.get(ClosestWall).Normal().cpy().scl(OverShoot.len());
 			}
-
+	
 		}//next feeler
-
+	
 		return SteeringForce;
 	}
 
@@ -361,21 +352,64 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private void CreateFeelers(){
 		this.feelers.clear();
 		float HalfPi = MathUtils.PI/2f;
-
+	
 		Vector2 agent_position = this.body.getPosition().cpy();
 		Vector2 agent_heading = this.body.getLinearVelocity().cpy().nor();
 		//feeler pointing straight in front
 		this.feelers.insert(0, agent_position.cpy().add(agent_heading.cpy().scl(this.wallDetectionFeelerLength)));
-
+	
 		//feeler to left
 		Vector2 temp = agent_heading.cpy();
 		this.Vec2DRotateAroundOrigin(temp, HalfPi * 3.5f);
 		this.feelers.insert(1, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength)));
-
+	
 		//feeler to right
 		temp = agent_heading.cpy();
 		this.Vec2DRotateAroundOrigin(temp, HalfPi * 0.5f);
 		this.feelers.insert(2, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength)));
+	}
+
+	private float Vec2DDistance(Vector2 v1, Vector2 v2)
+	{
+		float ySeparation = v2.y - v1.y;
+		float xSeparation = v2.x - v1.x;
+	
+		return (float) Math.sqrt((ySeparation*ySeparation + xSeparation*xSeparation));
+	}
+
+	private Boolean LineIntersection2D(Vector2 A, Vector2 B, Vector2 C, Vector2 D, float dist, Vector2 point)
+	{
+	
+		float rTop = (A.y-C.y)*(D.x-C.x)-(A.x-C.x)*(D.y-C.y);
+		float rBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
+	
+		float sTop = (A.y-C.y)*(B.x-A.x)-(A.x-C.x)*(B.y-A.y);
+		float sBot = (B.x-A.x)*(D.y-C.y)-(B.y-A.y)*(D.x-C.x);
+	
+		if ( (rBot == 0) || (sBot == 0))
+		{
+			//lines are parallel
+			return false;
+		}
+	
+		float r = rTop/rBot;
+		float s = sTop/sBot;
+	
+		if( (r > 0) && (r < 1) && (s > 0) && (s < 1) )
+		{
+			dist = this.Vec2DDistance(A,B) * r;
+	
+			point = A.add(((B.sub(A))).scl(r));
+	
+			return true;
+		}
+	
+		else
+		{
+			dist = 0;
+	
+			return false;
+		}
 	}
 
 	/*
@@ -386,8 +420,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Matrix3 matTransform = new Matrix3();
 		matTransform.idt();
 		matTransform.rotateRad(ang);
-
+	
 		v.mul(matTransform);
-
+	
 	}
 }
