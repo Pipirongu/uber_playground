@@ -1,14 +1,14 @@
 package com.plv.uberplayground.desktop;
 
-import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
-import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.plv.uberplayground.UberPlayground;
 
 public class DesktopLauncher {
 	public static void main (String[] arg) {
-		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
-		config.width = 400;
-		config.height = 240;
-		new LwjglApplication(new UberPlayground(), config);
+		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+		config.setWindowedMode(400, 240);
+		config.setTitle("Uber-Playground");
+		new Lwjgl3Application(new UberPlayground(), config);
 	}
 }

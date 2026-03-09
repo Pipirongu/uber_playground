@@ -1,32 +1,29 @@
 apply plugin: "java"
-apply plugin: "jetty"
+apply plugin: "war"
+apply plugin: "org.gretty"
 
 gwt {
-    gwtVersion='2.6.0' // Should match the gwt version used for building the gwt backend
-    maxHeapSize="1G" // Default 256m is not enough for gwt compiler. GWT is HUNGRY
-    minHeapSize="1G"
+    gwtVersion = '2.10.0'
+    maxHeapSize = '2G'
+    minHeapSize = '1G'
 
-    src = files(file("src/")) // Needs to be in front of "modules" below.
+    src = files(file("src/"))
     modules 'com.plv.uberplayground.GdxDefinition'
     devModules 'com.plv.uberplayground.GdxDefinitionSuperdev'
-    project.webAppDirName = 'webapp'
 
     compiler {
-        strict = true;
-        enableClosureCompiler = true;
-        disableCastChecking = true;
+        strict = true
+        disableCastChecking = true
     }
 }
 
-task draftRun(type: JettyRunWar) {
-    dependsOn draftWar
-    dependsOn.remove('war')
-    webApp=draftWar.archivePath
-    daemon=true
+gretty {
+    httpPort = 8080
+    contextPath = "/"
+    servletContainer = "jetty11"
 }
 
-task superDev(type: de.richsource.gradle.plugins.gwt.GwtSuperDev) {
-    dependsOn draftRun
+task superDev(type: org.wisepersist.gradle.plugins.gwt.GwtSuperDev) {
     doFirst {
     	gwt.modules = gwt.devModules
     }
@@ -50,20 +47,29 @@ task dist(dependsOn: [clean, compileGwt]) {
     }
 }
 
-draftWar {
-   from "war"
-}
-
-task addSource << {
-	sourceSets.main.compileClasspath += files(project(':core').sourceSets.main.allJava.srcDirs)
+task addSource {
+	doLast {
+		sourceSets.main.compileClasspath += files(project(':core').sourceSets.main.allJava.srcDirs)
+	}
 }
 
 tasks.compileGwt.dependsOn(addSource)
 tasks.draftCompileGwt.dependsOn(addSource)
 
-sourceCompatibility = 1.6
+sourceCompatibility = 11
+targetCompatibility = 11
 sourceSets.main.java.srcDirs = [ "src/" ]
 
+dependencies {
+    implementation project(":core")
+    implementation "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+    implementation "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+    implementation "com.badlogicgames.gdx:gdx-box2d:$gdxVersion:sources"
+    implementation "com.badlogicgames.gdx:gdx-box2d-gwt:$gdxVersion:sources"
+    implementation "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion:sources"
+    implementation "com.badlogicgames.gdx:gdx-ai:$aiVersion:sources"
+}
 
 eclipse.project {
     name = appName + "-html"
