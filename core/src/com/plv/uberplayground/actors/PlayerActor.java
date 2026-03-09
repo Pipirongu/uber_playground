@@ -37,6 +37,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	
 	private float heading;
 	private float wanderOrientation = 0;
+	private float accumulatedRotation = 0; // Track total rotation to prevent full circles
+	private float previousHeading = 0; // Track previous heading to measure rotation
 	private Smoother smoother = new Smoother(10, new Vector2(0f, 0f));
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
@@ -168,55 +170,78 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	}
 
 	public Vector2 Wander(){
-
-		// Add a random vector to the vWanderTarget
-		this.vWanderTargert.x += (MathUtils.random() * 2 - 1) * 200f * 0.001f;
-		this.vWanderTargert.y += (MathUtils.random() * 2 - 1) * 200f * 0.001f;
-
-		// Then normalize it and scale it to the wanderRadius
-		this.vWanderTargert.nor().scl(CIRCLE_RADIUS);
-
-		// Set vForce to the current heading, scale it wanderDistance, add the vWanderTarget and subtract the velocity
-		Vector2 wanderForce = ((this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.vWanderTargert).sub(this.body.getLinearVelocity().cpy()));
-
-		//move the target in front of the character
-//		Vector2 heading = this.body.getPosition().cpy().sub(this.vWanderTargert);
-//		Vector2 right = new Vector2(-heading.y, heading.x).nor();
-//		Vector2 targetPosition = (this.body.getPosition().cpy().add(right.cpy().scl(CIRCLE_DISTANCE))).add(this.vWanderTargert);
-
-		Gdx.app.log("SteeringForce", Float.toString(RandomBinomial()));
-		wanderOrientation += RandomBinomial() * 0.1f;
+		// Track rotation to prevent full circles
+		float headingDelta = this.heading - this.previousHeading;
 		
-		float angle = this.body.getLinearVelocity().angleRad();
-		Vector2 orientationToVector = new Vector2(MathUtils.cos(angle), MathUtils.sin(angle));
-		Vector2 orientationToVector1 = new Vector2(MathUtils.cos(angle + wanderOrientation), MathUtils.sin(angle + wanderOrientation));
-		Vector2 targetPosition = this.body.getPosition().cpy().add((orientationToVector.cpy().nor().scl(CIRCLE_DISTANCE)));
-
-		targetPosition.add(orientationToVector1.nor().scl(CIRCLE_RADIUS));
+		// Normalize the delta to [-π, π]
+		while (headingDelta > MathUtils.PI) headingDelta -= MathUtils.PI2;
+		while (headingDelta < -MathUtils.PI) headingDelta += MathUtils.PI2;
+		
+		// Accumulate rotation in the same direction
+		if (Math.abs(headingDelta) > 0.01f) {
+			if ((accumulatedRotation > 0 && headingDelta > 0) || (accumulatedRotation < 0 && headingDelta < 0)) {
+				// Same direction - accumulate
+				accumulatedRotation += headingDelta;
+			} else {
+				// Direction changed - reset accumulator
+				accumulatedRotation = headingDelta;
+			}
+		}
+		
+		// Calculate bias to gradually push away from continued rotation
+		float maxRotation = MathUtils.PI * 0.66f; // About 120 degrees
+		float bias = 0;
+		
+		if (Math.abs(accumulatedRotation) > maxRotation * 0.5f) {
+			// Start applying bias when halfway to max rotation
+			float excessRotation = Math.abs(accumulatedRotation) - (maxRotation * 0.5f);
+			float biasStrength = excessRotation / (maxRotation * 0.5f); // 0 to 1
+			// Apply smooth bias in opposite direction
+			bias = -Math.signum(accumulatedRotation) * biasStrength * 0.15f;
+		}
+		
+		// Normal wander behavior with bias applied
+		wanderOrientation += RandomBinomial() * 0.08f + bias;
+		
+		// Reset accumulator if we've successfully changed direction
+		if (Math.abs(accumulatedRotation) > maxRotation && 
+		    Math.signum(accumulatedRotation) != Math.signum(wanderOrientation)) {
+			accumulatedRotation = 0;
+		}
+		
+		// Normalize to [-π, π] range to prevent unbounded accumulation
+		wanderOrientation = ((wanderOrientation + MathUtils.PI) % MathUtils.PI2 + MathUtils.PI2) % MathUtils.PI2 - MathUtils.PI;
+		
+		// Store current heading for next frame
+		this.previousHeading = this.heading;
+		
+		// Use the body's current heading for stable forward direction
+		float angle = this.heading + MathUtils.PI / 2f; // Add PI/2 because heading is offset
+		Vector2 forwardDirection = new Vector2(MathUtils.cos(angle), MathUtils.sin(angle));
+		
+		// Calculate circle center in front of the actor
+		Vector2 circleCenter = this.body.getPosition().cpy().add(forwardDirection.cpy().scl(CIRCLE_DISTANCE));
+		
+		// Calculate wander target on the circle
+		Vector2 wanderDirection = new Vector2(MathUtils.cos(angle + wanderOrientation), MathUtils.sin(angle + wanderOrientation));
+		Vector2 targetPosition = circleCenter.cpy().add(wanderDirection.cpy().scl(CIRCLE_RADIUS));
 		
 		if(Configuration.isDebug){
-			//debug draw
+			//debug draw - red circle shows wander circle, green dot shows target
 			this.shapeRenderer.setColor(Color.RED);
 			this.shapeRenderer.begin(ShapeType.Line);
 			Matrix4 mat = this.getStage().getCamera().combined.cpy();
 			this.shapeRenderer.setProjectionMatrix(mat);
-			Vector2 circleCenter = (this.body.getLinearVelocity().cpy().nor()).scl(CIRCLE_DISTANCE).add(this.body.getPosition());
 			this.shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
-			this.shapeRenderer.end();
-
-			this.shapeRenderer.setColor(Color.RED);
-			this.shapeRenderer.begin(ShapeType.Line);
-			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.line(circleCenter, circleCenter.cpy().add(this.vWanderTargert));
 			this.shapeRenderer.end();
 
 			this.shapeRenderer.setColor(Color.GREEN);
 			this.shapeRenderer.begin(ShapeType.Filled);
 			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.circle((circleCenter.cpy().add(this.vWanderTargert)).x, (circleCenter.cpy().add(this.vWanderTargert)).y, 0.1f, 20);
+			this.shapeRenderer.circle(targetPosition.x, targetPosition.y, 0.1f, 20);
 			this.shapeRenderer.end();
 		}
-		//return wanderForce;
+		
 		return this.Seek(targetPosition);
 
 		//		// Calculate the circle center

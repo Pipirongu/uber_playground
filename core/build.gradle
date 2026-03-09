@@ -5,12 +5,21 @@ targetCompatibility = 11
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
 sourceSets.main.java.srcDirs = [ "src/" ]
+sourceSets.test.java.srcDirs = [ "test/" ]
 
 dependencies {
     api "com.badlogicgames.gdx:gdx:$gdxVersion"
     api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
     api "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
     api "com.badlogicgames.gdx:gdx-ai:$aiVersion"
+    
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.0"
+    testImplementation "net.jqwik:jqwik:1.8.0"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+    useJUnitPlatform()
 }
 
 eclipse.project {
