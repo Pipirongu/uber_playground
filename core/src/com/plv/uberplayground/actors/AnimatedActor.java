@@ -12,9 +12,15 @@ public class AnimatedActor extends Actor {
 	private Animation<TextureRegion> idleAnimation; // Must declare frame type (TextureRegion)
 	private int textureWidth;
 	private int textureHeight;
+	private float scale = 1.0f;
 
 	public AnimatedActor(String animationName, float x, float y, int frameCols, int frameRows){
+		this(animationName, x, y, frameCols, frameRows, 1.0f);
+	}
+	
+	public AnimatedActor(String animationName, float x, float y, int frameCols, int frameRows, float scale){
 		this.setPosition(x, y);
+		this.scale = scale;
 
 		// Load the sprite sheet as a Texture
 		Texture idleSheet;
@@ -47,12 +53,12 @@ public class AnimatedActor extends Actor {
 		if(!this.idleAnimation.isAnimationFinished(Configuration.ElapsedTime)) {
 			//sprite and body have different origins, so we draw the animation at the right place
 			batch.draw(this.idleAnimation.getKeyFrame(Configuration.ElapsedTime, true),
-					this.getX() - (this.textureWidth / 2.f) / Configuration.PPM,
-					this.getY() - (this.textureHeight / 2.f) / Configuration.PPM,
-					(this.textureWidth / 2.f) / Configuration.PPM,
-					(this.textureHeight / 2.f) / Configuration.PPM,
-					this.textureWidth / Configuration.PPM,
-					this.textureHeight / Configuration.PPM,
+					this.getX() - (this.textureWidth / 2.f * scale) / Configuration.PPM,
+					this.getY() - (this.textureHeight / 2.f * scale) / Configuration.PPM,
+					(this.textureWidth / 2.f * scale) / Configuration.PPM,
+					(this.textureHeight / 2.f * scale) / Configuration.PPM,
+					(this.textureWidth * scale) / Configuration.PPM,
+					(this.textureHeight * scale) / Configuration.PPM,
 					1,
 					1,
 					0);

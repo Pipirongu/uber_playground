@@ -13,6 +13,7 @@ import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.ContactImpulse;
 import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.EdgeShape;
+import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.World;
@@ -23,16 +24,21 @@ import com.plv.uberplayground.UberPlayground;
 import com.plv.uberplayground.actors.AnimatedActor;
 import com.plv.uberplayground.actors.ControlPointActor;
 import com.plv.uberplayground.actors.PlayerActor;
+import com.plv.uberplayground.actors.PlayerShip;
+import com.plv.uberplayground.actors.Projectile;
+import com.plv.uberplayground.actors.ProjectilePool;
 import com.plv.uberplayground.actors.Wall;
 import com.plv.uberplayground.config.Configuration;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
+import com.plv.uberplayground.inputhandlers.PlayerShipInputHandler;
+import com.plv.uberplayground.screens.MainMenuScreen;
 
 public class GameScreen implements Screen {
 	private World world;
 	private Box2DDebugRenderer debugRenderer;
 
-	private static final int VIRTUAL_WIDTH = 16;
-	private static final int VIRTUAL_HEIGHT = 9;
+	private static final int VIRTUAL_WIDTH = 1600;
+	private static final int VIRTUAL_HEIGHT = 1200;
 
 	private OrthographicCamera mainCamera;
 	// group for agent and its particle emitter, physics applies to group, will
@@ -44,6 +50,13 @@ public class GameScreen implements Screen {
 	private Stage gameStage;
 	private PlayerActor player;
 	public Array<Wall>Walls = new Array<Wall>();
+	
+	// PlayerShip integration fields
+	private PlayerShip playerShip;
+	private ProjectilePool projectilePool;
+	private PlayerShipInputHandler playerShipInputHandler;
+	private boolean isGameOver;
+	private float gameOverTimer;
 	
 	private final UberPlayground app;
 
@@ -57,10 +70,31 @@ public class GameScreen implements Screen {
 		this.world.setContactListener(new ContactListener() {
 			@Override
 			public void beginContact(Contact contact) {
-				// Check to see if the collision is between the second sprite
-				// and the bottom of the screen
-				// If so apply a random amount of upward force to both
-				// objects... just because
+				Fixture fixtureA = contact.getFixtureA();
+				Fixture fixtureB = contact.getFixtureB();
+				
+				// Check for PlayerShip-Wall collision (triggers game over)
+				if (isCollision(fixtureA, fixtureB, Configuration.EntityCategory.PLAYER_SHIP.getValue(), Configuration.EntityCategory.BOUNDARY.getValue())) {
+					triggerGameOver();
+				}
+				
+				// Check for Projectile-Wall collision (deactivate projectile)
+				if (isCollision(fixtureA, fixtureB, Configuration.EntityCategory.PROJECTILE.getValue(), Configuration.EntityCategory.BOUNDARY.getValue())) {
+					Projectile proj = getProjectileFromFixtures(fixtureA, fixtureB);
+					if (proj != null) {
+						proj.markForDeactivation();
+					}
+				}
+				
+				// Check for Projectile-Enemy collision (deactivate projectile)
+				if (isCollision(fixtureA, fixtureB, Configuration.EntityCategory.PROJECTILE.getValue(), Configuration.EntityCategory.ENEMY_SHIP.getValue())) {
+					Projectile proj = getProjectileFromFixtures(fixtureA, fixtureB);
+					if (proj != null) {
+						proj.markForDeactivation();
+					}
+				}
+				
+				// Existing collision logic for PlayerActor-Boundary
 				if ((contact.getFixtureA().getFilterData().categoryBits == Configuration.EntityCategory.BOUNDARY.getValue() &&
 						contact.getFixtureB().getFilterData().categoryBits == Configuration.EntityCategory.PLAYER.getValue()) ||
 
@@ -85,16 +119,15 @@ public class GameScreen implements Screen {
 			}
 		});
 
-		float offsetTopBottom = 0f;
-		float offsetLeftRight = 0f;
-		//Bottom
-		this.CreateBoundary(0f, 0 + offsetTopBottom, this.VIRTUAL_WIDTH, 0 + offsetTopBottom, false);
-		//Top
-		this.CreateBoundary(0f, this.VIRTUAL_HEIGHT - offsetTopBottom, this.VIRTUAL_WIDTH, this.VIRTUAL_HEIGHT - offsetTopBottom, false);
-		//Left
-		this.CreateBoundary(0 + offsetLeftRight, 0f, 0 + offsetLeftRight, this.VIRTUAL_HEIGHT, false);
-		//Right
-		this.CreateBoundary(this.VIRTUAL_WIDTH - offsetLeftRight, 0f, this.VIRTUAL_WIDTH - offsetLeftRight, this.VIRTUAL_HEIGHT, false);
+		float bordersize = 1f;
+		//Bottom - at y=1
+		this.CreateBoundary(0f, bordersize, this.VIRTUAL_WIDTH, bordersize, false);
+		//Top - at y=1199
+		this.CreateBoundary(0f, this.VIRTUAL_HEIGHT - bordersize, this.VIRTUAL_WIDTH, this.VIRTUAL_HEIGHT - bordersize, false);
+		//Left - at x=1
+		this.CreateBoundary(bordersize, 0f, bordersize, this.VIRTUAL_HEIGHT, false);
+		//Right - at x=1599
+		this.CreateBoundary(this.VIRTUAL_WIDTH - bordersize, 0f, this.VIRTUAL_WIDTH - bordersize, this.VIRTUAL_HEIGHT, false);
 
 		this.debugRenderer = new Box2DDebugRenderer();
 
@@ -103,7 +136,7 @@ public class GameScreen implements Screen {
 		
 		// create agents
 		this.player = new PlayerActor("agent", this.world, VIRTUAL_WIDTH / 2,
-				VIRTUAL_HEIGHT / 2, 5, 2);
+				VIRTUAL_HEIGHT / 2, 5, 2, 50.0f);
 		this.player.setIdleAnimFrameDuration(0.05f);
 		this.player.setParticleEmitter("exhaust", 0.f, 0.f, true, true);
 		// this.player.setLinearVelocity(0.f, 0.1f);
@@ -117,9 +150,25 @@ public class GameScreen implements Screen {
 		this.gameStage.addListener(new GameStageInputHandler(this.app, this.world, this.gameStage));
 		this.gameStage.addActor(this.player);
 
-		// InputMultiplexer - HUD stage first, then Actor/Game stage
+		// Create PlayerShip at center of game field (800, 600) with 50x scale
+		this.playerShip = new PlayerShip("agent", this.world, 800, 600, 5, 2, 50.0f);
+		this.playerShip.setIdleAnimFrameDuration(0.05f);
+		this.gameStage.addActor(this.playerShip);
+		
+		// Create ProjectilePool
+		this.projectilePool = new ProjectilePool(this.world, this.gameStage);
+		
+		// Create PlayerShipInputHandler
+		this.playerShipInputHandler = new PlayerShipInputHandler(this.playerShip, this);
+		
+		// Initialize game state
+		this.isGameOver = false;
+		this.gameOverTimer = 0.0f;
+
+		// InputMultiplexer - HUD stage first, then PlayerShip input, then Actor/Game stage
 		InputMultiplexer multiplexer = new InputMultiplexer();
 		multiplexer.addProcessor(this.hudStage);
+		multiplexer.addProcessor(this.playerShipInputHandler);
 		multiplexer.addProcessor(this.gameStage);
 		Gdx.input.setInputProcessor(multiplexer);
 	}
@@ -132,9 +181,26 @@ public class GameScreen implements Screen {
 	@Override
 	public void render(float delta) {
 		Configuration.ElapsedTime += delta;
+		
+		// Update player ship input before physics step
+		this.playerShipInputHandler.update();
+		
 		this.world.step(delta, 6, 2);
-
-
+		
+		// Update projectiles after physics step
+		this.projectilePool.updateAll(delta);
+		
+		// Handle game over transition
+		if (isGameOver) {
+			gameOverTimer -= delta;
+			if (gameOverTimer <= 0) {
+				// Dispose resources before transitioning
+				dispose();
+				// Transition to MainMenuScreen
+				app.setScreen(new MainMenuScreen(app));
+				return;
+			}
+		}
 
 		Gdx.gl.glClearColor(0, 0, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -179,6 +245,7 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void dispose() {
+		this.projectilePool.disposeAll();
 		this.debugRenderer.dispose();
 		this.world.dispose();
 		this.gameStage.dispose();
@@ -188,14 +255,14 @@ public class GameScreen implements Screen {
 		ControlPointActor playerControlPoint = this.player.getControlPoint();
 		// spawn someting
 		if (playerControlPoint == null) {
-			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2);
+			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2, this.player.getActorScale());
 			newControlPoint.setIdleAnimFrameDuration(0.1f);
 			this.player.setControlPoint(newControlPoint);
 			this.gameStage.addActor(newControlPoint);
 
 		} else {
 			Vector2 previousBodyPos = playerControlPoint.getBody().getPosition();
-			AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y, 5, 1);
+			AnimatedActor explosionAtPrevPos = new AnimatedActor("explosion", previousBodyPos.x, previousBodyPos.y, 5, 1, this.player.getActorScale());
 			explosionAtPrevPos.setIdleAnimFrameDuration(0.1f);
 			this.gameStage.addActor(explosionAtPrevPos);
 
@@ -204,10 +271,52 @@ public class GameScreen implements Screen {
 			this.world.destroyBody(playerControlPoint.getBody());
 
 			// add new spawnUnit
-			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2);
+			ControlPointActor newControlPoint = new ControlPointActor("spawn_unit", this.world, x, y, 2, 2, this.player.getActorScale());
 			newControlPoint.setIdleAnimFrameDuration(0.1f);
 			this.player.setControlPoint(newControlPoint);
 			this.gameStage.addActor(newControlPoint);
+		}
+	}
+
+	public void spawnProjectile(Vector2 position, Vector2 direction, Vector2 shipVelocity) {
+		Projectile projectile = this.projectilePool.obtain(position, direction, shipVelocity);
+		// Note: ProjectilePool.obtain() already adds the projectile to gameStage if not null
+		// No additional action needed here as the pool manages the lifecycle
+	}
+	
+	// Helper method to check if collision is between two specific categories
+	private boolean isCollision(Fixture a, Fixture b, short cat1, short cat2) {
+		return (a.getFilterData().categoryBits == cat1 && b.getFilterData().categoryBits == cat2) ||
+			   (a.getFilterData().categoryBits == cat2 && b.getFilterData().categoryBits == cat1);
+	}
+	
+	// Helper method to extract Projectile from fixture user data
+	private Projectile getProjectileFromFixtures(Fixture a, Fixture b) {
+		// Check fixture A
+		if (a.getFilterData().categoryBits == Configuration.EntityCategory.PROJECTILE.getValue()) {
+			Object userData = a.getBody().getUserData();
+			if (userData instanceof Projectile) {
+				return (Projectile) userData;
+			}
+		}
+		
+		// Check fixture B
+		if (b.getFilterData().categoryBits == Configuration.EntityCategory.PROJECTILE.getValue()) {
+			Object userData = b.getBody().getUserData();
+			if (userData instanceof Projectile) {
+				return (Projectile) userData;
+			}
+		}
+		
+		return null;
+	}
+	
+	// Trigger game over and schedule transition to MainMenuScreen
+	public void triggerGameOver() {
+		if (!isGameOver) {
+			isGameOver = true;
+			gameOverTimer = 1.0f; // 1 second countdown
+			Gdx.app.log("GameOver", "Player ship collided with wall - Game Over!");
 		}
 	}
 

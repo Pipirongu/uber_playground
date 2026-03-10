@@ -20,6 +20,7 @@ public class AnimatedPhysicsActor extends Actor {
 	protected Animation<TextureRegion> idleAnimation; // Must declare frame type (TextureRegion)
 	protected int textureWidth;
 	protected int textureHeight;
+	protected float scale = 1.0f;
 
 	protected ParticleEffect pe = null;
 	protected ParticleEmitter.ScaledNumericValue emitter_angle;
@@ -31,7 +32,12 @@ public class AnimatedPhysicsActor extends Actor {
 	protected Body body;
 
 	public AnimatedPhysicsActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
+		this(animationName, world, x, y, frameCols, frameRows, 1.0f);
+	}
+
+	public AnimatedPhysicsActor(String animationName, World world, float x, float y, int frameCols, int frameRows, float scale){
 		this.world = world;
+		this.scale = scale;
 
 		// Load the sprite sheet as a Texture
 		Texture idleSheet;
@@ -64,9 +70,9 @@ public class AnimatedPhysicsActor extends Actor {
 		bodyDef.type = BodyDef.BodyType.DynamicBody;
 		bodyDef.position.set(x, y);
 
-		//body shape
+		//body shape - apply scale to physics body dimensions
 		PolygonShape shape = new PolygonShape();
-		shape.setAsBox((this.textureWidth/2.f)/Configuration.PPM, (this.textureHeight/2.f)/Configuration.PPM);
+		shape.setAsBox((this.textureWidth/2.f * scale)/Configuration.PPM, (this.textureHeight/2.f * scale)/Configuration.PPM);
 
 		//body fixture
 		FixtureDef fixtureDef = new FixtureDef();
@@ -86,15 +92,14 @@ public class AnimatedPhysicsActor extends Actor {
 			this.pe.draw(batch);
 		}
 
-
 		//sprite and body have different origins, so we draw the animation at the right place
 		batch.draw(this.idleAnimation.getKeyFrame(Configuration.ElapsedTime, true),
-				this.body.getPosition().x - (this.textureWidth/2.f)/Configuration.PPM,
-				this.body.getPosition().y - (this.textureHeight/2.f)/Configuration.PPM,
-				(this.textureWidth/2.f)/Configuration.PPM,
-				(this.textureHeight/2.f)/Configuration.PPM,
-				this.textureWidth/Configuration.PPM,
-				this.textureHeight/Configuration.PPM,
+				this.body.getPosition().x - (this.textureWidth/2.f * scale)/Configuration.PPM,
+				this.body.getPosition().y - (this.textureHeight/2.f * scale)/Configuration.PPM,
+				(this.textureWidth/2.f * scale)/Configuration.PPM,
+				(this.textureHeight/2.f * scale)/Configuration.PPM,
+				(this.textureWidth * scale)/Configuration.PPM,
+				(this.textureHeight * scale)/Configuration.PPM,
 				1,
 				1,
 				(float)Math.toDegrees(this.body.getAngle()));

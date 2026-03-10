@@ -11,7 +11,8 @@ public class Configuration {
 	public final static Boolean isDebug = true;
 
 	public static enum EntityCategory {
-		BOUNDARY((short) 0x1), PLAYER((short) 0x2), ENEMY_SHIP((short) 0x3), CONTROL_POINT((short) 0x4);
+		BOUNDARY((short) 0x1), PLAYER((short) 0x2), ENEMY_SHIP((short) 0x3), CONTROL_POINT((short) 0x4),
+		PLAYER_SHIP((short) 0x5), PROJECTILE((short) 0x6);
 
 		private final short id;
 

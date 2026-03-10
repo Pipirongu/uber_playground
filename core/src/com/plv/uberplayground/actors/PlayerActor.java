@@ -16,13 +16,13 @@ import com.plv.uberplayground.config.Configuration;
 
 public class PlayerActor extends AnimatedPhysicsActor {
 	private ControlPointActor controlPoint = null;
-	private float maxSpeed = 8f;
-	private float maxForce = 0.5f;
-	private float slowingDistance = 2.3f;
+	private float maxSpeed;
+	private float maxForce;
+	private float slowingDistance;
 
 	//Wander vars
-	private static final float CIRCLE_DISTANCE = 0.5f;
-	private static final float CIRCLE_RADIUS = 0.6f;
+	private float circleDistance;
+	private float circleRadius;
 	private static final float ANGLE_CHANGE = 15f * MathUtils.PI / 180f;
 	private float wanderAngle = 0;
 	private Vector2 vWanderTargert = new Vector2();
@@ -31,7 +31,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 
 	//Wall avoidance vars
 	private Array<Vector2> feelers;
-	private float wallDetectionFeelerLength = 1f;
+	private float wallDetectionFeelerLength;
 	
 	private Vector2 steeringForce = new Vector2();
 	
@@ -39,15 +39,53 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private float wanderOrientation = 0;
 	private float accumulatedRotation = 0; // Track total rotation to prevent full circles
 	private float previousHeading = 0; // Track previous heading to measure rotation
-	private Smoother smoother = new Smoother(10, new Vector2(0f, 0f));
+	private Smoother smoother = new Smoother(1, new Vector2(0f, 0f));
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
+		
+		// Initialize with default scale of 1.0
+		this.maxSpeed = 200f;
+		this.maxForce = 20.0f;
+		this.slowingDistance = 2.3f;
+		this.wallDetectionFeelerLength = 1f;
+		this.circleDistance = 0.5f;
+		this.circleRadius = 0.6f;
 
 		Filter filter = new Filter();
 		filter.categoryBits = Configuration.EntityCategory.PLAYER.getValue();
 		filter.maskBits = Configuration.EntityCategory.BOUNDARY.getValue();
 		this.body.getFixtureList().get(0).setFilterData(filter);
+
+		// Reduce damping to make the body more responsive to direction changes
+		this.body.setLinearDamping(0.01f);
+		this.body.setAngularDamping(0.01f);
+
+		this.feelers = new Array<Vector2>(3);
+	}
+
+	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows, float scale){
+		super(animationName, world, x,  y, frameCols, frameRows, scale);
+		
+		// Scale the forces proportionally to the body mass
+		// Mass = density × area, and area scales with scale^2
+		// So mass scales with scale^2, and forces need to scale accordingly
+		float massScale = scale * scale; // Scale^2 for area/mass compensation
+		this.maxSpeed = 200f * scale;
+		this.maxForce = 20.0f * massScale;
+		this.slowingDistance = 2.3f * scale;
+		this.wallDetectionFeelerLength = 1f * scale;
+		this.circleDistance = 0.5f * scale;
+		this.circleRadius = 0.6f * scale;
+
+		Filter filter = new Filter();
+		filter.categoryBits = Configuration.EntityCategory.PLAYER.getValue();
+		filter.maskBits = Configuration.EntityCategory.BOUNDARY.getValue();
+		this.body.getFixtureList().get(0).setFilterData(filter);
+
+		// Reduce damping to make the body more responsive to direction changes
+		this.body.setLinearDamping(0.01f);
+		this.body.setAngularDamping(0.01f);
 
 		this.feelers = new Array<Vector2>(3);
 	}
@@ -56,18 +94,21 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	public void act(float delta){
 		super.act(delta);
 
-		if (this.controlPoint != null) {
-			Vector2 steeringForce = this.CalculateSteeringForce();
-			//Gdx.app.log("SteeringForce", Float.toString(steeringForce.len()));
+		Vector2 steeringForce = this.CalculateSteeringForce();
+		
 
-			for(int i = 0;i<Configuration.Walls.size;i++){
-				Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
-			}
-			this.body.applyForceToCenter(this.steeringForce, true);
-			Vector2 smoothedHeading = this.smoother.Update(this.body.getLinearVelocity().cpy());
-			this.CalculateHeading(smoothedHeading);
-			this.body.setTransform(this.body.getPosition(), this.heading);
+
+		for(int i = 0;i<Configuration.Walls.size;i++){
+			Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
 		}
+		this.body.applyForceToCenter(this.steeringForce, true);
+		Vector2 smoothedHeading = this.smoother.Update(this.body.getLinearVelocity().cpy());
+		this.CalculateHeading(smoothedHeading);
+		this.body.setTransform(this.body.getPosition(), this.heading);
+	}
+
+	public float getActorScale() {
+		return this.scale;
 	}
 
 	public ControlPointActor getControlPoint() {
@@ -100,10 +141,18 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			return force;
 		}
 		
-		//if wander on
-		force = this.Wander().scl(1f);
-		if (!AccumulateSteeringForce(this.steeringForce, force)){
-			return force;
+		//if control point exists, arrive at it, otherwise wander
+		if (this.controlPoint != null) {
+			force = this.Arrive().scl(1f);
+			if (!AccumulateSteeringForce(this.steeringForce, force)){
+				return force;
+			}
+		} else {
+			//if wander on
+			force = this.Wander().scl(1f);
+			if (!AccumulateSteeringForce(this.steeringForce, force)){
+				return force;
+			}
 		}
 		
 		return this.steeringForce;
@@ -156,18 +205,18 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	}
 
 	public Vector2 Seek(Vector2 target){
-		// First we get the direction we need to travel in
-		Vector2 desiredVelocity = target.sub(this.body.getPosition());//(this.controlPoint.getBody().getPosition().cpy().sub(this.body.getPosition()));
-		desiredVelocity.nor();
-		//desiredVelocity.scl(this.maxSpeed);
+			// First we get the direction we need to travel in
+			Vector2 desiredVelocity = target.sub(this.body.getPosition());
+			desiredVelocity.nor();
+			desiredVelocity.scl(this.maxSpeed); // Scale by maxSpeed to get proper force magnitude
 
-		// Subtract the current velocity. This is the calibration force
-		Vector2 steeringForce = new Vector2(0,0);
-		steeringForce = desiredVelocity.cpy().sub(this.body.getLinearVelocity());
-		//steeringForce.limit(this.maxForce);
+			// Subtract the current velocity. This is the calibration force
+			Vector2 steeringForce = new Vector2(0,0);
+			steeringForce = desiredVelocity.cpy().sub(this.body.getLinearVelocity());
+			steeringForce.limit(this.maxForce); // Limit by maxForce to prevent excessive forces
 
-		return steeringForce;
-	}
+			return steeringForce;
+		}
 
 	public Vector2 Wander(){
 		// Track rotation to prevent full circles
@@ -201,7 +250,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		}
 		
 		// Normal wander behavior with bias applied
-		wanderOrientation += RandomBinomial() * 0.08f + bias;
+		wanderOrientation += RandomBinomial() * 1.5f + bias;
 		
 		// Reset accumulator if we've successfully changed direction
 		if (Math.abs(accumulatedRotation) > maxRotation && 
@@ -220,11 +269,11 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Vector2 forwardDirection = new Vector2(MathUtils.cos(angle), MathUtils.sin(angle));
 		
 		// Calculate circle center in front of the actor
-		Vector2 circleCenter = this.body.getPosition().cpy().add(forwardDirection.cpy().scl(CIRCLE_DISTANCE));
+		Vector2 circleCenter = this.body.getPosition().cpy().add(forwardDirection.cpy().scl(this.circleDistance));
 		
 		// Calculate wander target on the circle
 		Vector2 wanderDirection = new Vector2(MathUtils.cos(angle + wanderOrientation), MathUtils.sin(angle + wanderOrientation));
-		Vector2 targetPosition = circleCenter.cpy().add(wanderDirection.cpy().scl(CIRCLE_RADIUS));
+		Vector2 targetPosition = circleCenter.cpy().add(wanderDirection.cpy().scl(this.circleRadius));
 		
 		if(Configuration.isDebug){
 			//debug draw - red circle shows wander circle, green dot shows target
@@ -232,13 +281,13 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			this.shapeRenderer.begin(ShapeType.Line);
 			Matrix4 mat = this.getStage().getCamera().combined.cpy();
 			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.circle(circleCenter.x, circleCenter.y, CIRCLE_RADIUS, 20);
+			this.shapeRenderer.circle(circleCenter.x, circleCenter.y, this.circleRadius, 20);
 			this.shapeRenderer.end();
 
 			this.shapeRenderer.setColor(Color.GREEN);
 			this.shapeRenderer.begin(ShapeType.Filled);
 			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.circle(targetPosition.x, targetPosition.y, 0.1f, 20);
+			this.shapeRenderer.circle(targetPosition.x, targetPosition.y, 0.1f * scale, 20);
 			this.shapeRenderer.end();
 		}
 		
