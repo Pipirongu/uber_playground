@@ -40,6 +40,16 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	private float accumulatedRotation = 0; // Track total rotation to prevent full circles
 	private float previousHeading = 0; // Track previous heading to measure rotation
 	private Smoother smoother = new Smoother(1, new Vector2(0f, 0f));
+	
+	// Enemy-specific properties
+	private boolean isEnemy = false;
+	private com.plv.uberplayground.enemies.EnemyHealthBar healthBar = null;
+	private com.plv.uberplayground.enemies.EnemyBehaviorLabel behaviorLabel = null;
+	private com.plv.uberplayground.enemies.HealthComponent healthComponent = null;
+	private com.plv.uberplayground.enemies.BehaviorState behaviorState = null;
+	private Array<Vector2> patrolWaypoints = null;
+	private int currentWaypointIndex = 0;
+	private float orbitAngle = 0.0f; // For orbit behavior
 
 	public PlayerActor(String animationName, World world, float x, float y, int frameCols, int frameRows){
 		super(animationName, world, x,  y, frameCols, frameRows);
@@ -48,7 +58,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.maxSpeed = 200f;
 		this.maxForce = 20.0f;
 		this.slowingDistance = 2.3f;
-		this.wallDetectionFeelerLength = 1f;
+		this.wallDetectionFeelerLength = 1.5f; // Increased from 1f for better warning distance
 		this.circleDistance = 0.5f;
 		this.circleRadius = 0.6f;
 
@@ -74,7 +84,7 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.maxSpeed = 200f * scale;
 		this.maxForce = 20.0f * massScale;
 		this.slowingDistance = 2.3f * scale;
-		this.wallDetectionFeelerLength = 1f * scale;
+		this.wallDetectionFeelerLength = 1.5f * scale; // Increased from 1f for better warning distance
 		this.circleDistance = 0.5f * scale;
 		this.circleRadius = 0.6f * scale;
 
@@ -94,6 +104,11 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	public void act(float delta){
 		super.act(delta);
 
+		// Update behavior state for enemies
+		if (this.isEnemy && this.behaviorState != null) {
+			this.behaviorState.update(delta);
+		}
+
 		Vector2 steeringForce = this.CalculateSteeringForce();
 		
 
@@ -105,6 +120,22 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Vector2 smoothedHeading = this.smoother.Update(this.body.getLinearVelocity().cpy());
 		this.CalculateHeading(smoothedHeading);
 		this.body.setTransform(this.body.getPosition(), this.heading);
+		
+		// Render health bar for enemies with performance optimization
+		if (this.isEnemy && this.healthBar != null && this.healthComponent != null) {
+			float healthPercentage = this.healthComponent.getHealthPercentage();
+			
+			// Always render health bar for debugging - remove performance optimization temporarily
+			Vector2 enemyPosition = this.body.getPosition();
+			this.healthBar.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, healthPercentage, true);
+		}
+		
+		// Render behavior label for enemies
+		if (this.isEnemy && this.behaviorLabel != null && this.behaviorState != null) {
+			com.plv.uberplayground.enemies.SteeringBehaviorType currentBehavior = this.behaviorState.getCurrentType();
+			Vector2 enemyPosition = this.body.getPosition();
+			this.behaviorLabel.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, currentBehavior, true);
+		}
 	}
 
 	public float getActorScale() {
@@ -136,22 +167,96 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Vector2 force = new Vector2();
 		
 		//if wall avoidance on
-		force = this.WallAvoidance(Configuration.Walls).scl(10f);
+		force = this.WallAvoidance(Configuration.Walls);
+		
+		// Apply proper force scaling instead of hardcoded 10f multiplier
+		if (force.len2() > 0) { // Only scale if there's actually a wall avoidance force
+			// Calculate scale-aware force multiplier
+			float scaleFactor = this.getActorScale();
+			float massScale = scaleFactor * scaleFactor; // Mass scales with scale²
+			
+			// Base force multiplier proportional to maxForce scaling
+			// This maintains consistent steering strength relative to actor size
+			float baseMultiplier = this.maxForce / 20.0f; // 20.0f is the base maxForce at scale 1.0
+			
+			// Velocity-based force modulation to prevent over-reaction at low speeds
+			float currentVelocity = this.body.getLinearVelocity().len();
+			float maxVelocity = this.maxSpeed;
+			float velocityRatio = Math.min(currentVelocity / maxVelocity, 1.0f); // Clamp to [0,1]
+			
+			// Minimum velocity factor to ensure some response even at very low speeds
+			float minVelocityFactor = 0.3f;
+			float velocityFactor = minVelocityFactor + (1.0f - minVelocityFactor) * velocityRatio;
+			
+			// Calculate final force multiplier
+			// - baseMultiplier ensures proportional scaling with maxForce
+			// - velocityFactor prevents over-reaction at low speeds
+			// - Additional scaling factor for wall avoidance strength (equivalent to old 10f but scale-aware)
+			float forceMultiplier = baseMultiplier * velocityFactor * 10.0f;
+			
+			force.scl(forceMultiplier);
+		}
 		if (!AccumulateSteeringForce(this.steeringForce, force)){
 			return force;
 		}
 		
-		//if control point exists, arrive at it, otherwise wander
-		if (this.controlPoint != null) {
-			force = this.Arrive().scl(1f);
+		// Enemy behavior handling
+		if (this.isEnemy && this.behaviorState != null && this.playerTarget != null) {
+			com.plv.uberplayground.enemies.SteeringBehaviorType currentBehavior = this.behaviorState.getCurrentType();
+			
+			switch (currentBehavior) {
+				case WANDER:
+					force = this.Wander().scl(1f);
+					break;
+				case SEEK:
+					force = this.Seek(this.playerTarget.cpy()).scl(1f);
+					break;
+				case FLEE:
+					force = com.plv.uberplayground.enemies.SteeringBehaviorLibrary.flee(this, this.playerTarget.cpy()).scl(1f);
+					break;
+				case PATROL:
+					force = com.plv.uberplayground.enemies.SteeringBehaviorLibrary.patrol(this, this.patrolWaypoints).scl(1f);
+					break;
+				case ORBIT:
+					float orbitRadius = com.plv.uberplayground.enemies.SpawnConfiguration.DEFAULT_ORBIT_RADIUS;
+					force = com.plv.uberplayground.enemies.SteeringBehaviorLibrary.orbit(this, this.playerTarget.cpy(), orbitRadius).scl(1f);
+					break;
+				case INTERCEPT:
+					// For intercept, we need PlayerShip reference - fall back to seek for now
+					force = this.Seek(this.playerTarget.cpy()).scl(1f);
+					break;
+				case FLOCK:
+					// Get neighbors for flocking behavior (use cached if available)
+					Array<PlayerActor> neighbors = getNearbyEnemies();
+					if (neighbors.size > 0) {
+						force = com.plv.uberplayground.enemies.SteeringBehaviorLibrary.flock(this, neighbors).scl(1f);
+					} else {
+						// Fall back to seek if no neighbors
+						force = this.Seek(this.playerTarget.cpy()).scl(1f);
+					}
+					break;
+				default:
+					force = this.Wander().scl(1f);
+					break;
+			}
+			
 			if (!AccumulateSteeringForce(this.steeringForce, force)){
 				return force;
 			}
 		} else {
-			//if wander on
-			force = this.Wander().scl(1f);
-			if (!AccumulateSteeringForce(this.steeringForce, force)){
-				return force;
+			// Player behavior (original logic)
+			//if control point exists, arrive at it, otherwise wander
+			if (this.controlPoint != null) {
+				force = this.Arrive().scl(1f);
+				if (!AccumulateSteeringForce(this.steeringForce, force)){
+					return force;
+				}
+			} else {
+				//if wander on
+				force = this.Wander().scl(1f);
+				if (!AccumulateSteeringForce(this.steeringForce, force)){
+					return force;
+				}
 			}
 		}
 		
@@ -386,12 +491,13 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	
 		//this will hold an index into the vector of walls
 		int ClosestWall = -1;
+		int ClosestFeeler = -1; // Track which feeler found the closest intersection
 	
 		Vector2 SteeringForce = new Vector2();
 		Vector2 point = new Vector2();      //used for storing temporary info
 		Vector2 ClosestPoint = new Vector2();  //holds the closest intersection point
 	
-		//examine each feeler in turn
+		//examine each feeler in turn to find the closest intersection across ALL feelers
 		for (int flr=0; flr<this.feelers.size; ++flr)
 		{
 			//run through each wall checking for any intersection points
@@ -404,26 +510,24 @@ public class PlayerActor extends AnimatedPhysicsActor {
 					{
 						DistToClosestIP = DistToThisIP;
 						ClosestWall = w;
-						ClosestPoint = point;
+						ClosestFeeler = flr;
+						ClosestPoint = point.cpy(); // Make a copy to avoid reference issues
 					}
 				}
 			}//next wall
-	
-	
-			//if an intersection point has been detected, calculate a force
-			//that will direct the agent away
-			if (ClosestWall >=0)
-			{
-				//calculate by what distance the projected position of the agent
-				//will overshoot the wall
-				Vector2 OverShoot = this.feelers.get(flr).cpy().sub(ClosestPoint);
-	
-				//create a force in the direction of the wall normal, with a
-				//magnitude of the overshoot
-				SteeringForce = walls.get(ClosestWall).Normal().cpy().scl(OverShoot.len());
-			}
-	
 		}//next feeler
+	
+		//NOW calculate steering force ONCE using the closest intersection found across all feelers
+		if (ClosestWall >= 0 && ClosestFeeler >= 0)
+		{
+			//calculate by what distance the projected position of the agent
+			//will overshoot the wall (using the feeler that found the closest intersection)
+			Vector2 OverShoot = this.feelers.get(ClosestFeeler).cpy().sub(ClosestPoint);
+	
+			//create a force in the direction of the wall normal, with a
+			//magnitude of the overshoot
+			SteeringForce = walls.get(ClosestWall).Normal().cpy().scl(OverShoot.len());
+		}
 	
 		return SteeringForce;
 	}
@@ -434,21 +538,21 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	 * */
 	private void CreateFeelers(){
 		this.feelers.clear();
-		float HalfPi = MathUtils.PI/2f;
 	
 		Vector2 agent_position = this.body.getPosition().cpy();
 		Vector2 agent_heading = this.body.getLinearVelocity().cpy().nor();
-		//feeler pointing straight in front
+		
+		//feeler pointing straight in front (0° relative to heading)
 		this.feelers.insert(0, agent_position.cpy().add(agent_heading.cpy().scl(this.wallDetectionFeelerLength)));
 	
-		//feeler to left
+		//feeler to left (-25° from heading for proper forward path sampling)
 		Vector2 temp = agent_heading.cpy();
-		this.Vec2DRotateAroundOrigin(temp, HalfPi * 3.5f);
+		this.Vec2DRotateAroundOrigin(temp, -MathUtils.PI / 7.2f); // -25° = -π/7.2
 		this.feelers.insert(1, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength)));
 	
-		//feeler to right
+		//feeler to right (+25° from heading for proper forward path sampling)
 		temp = agent_heading.cpy();
-		this.Vec2DRotateAroundOrigin(temp, HalfPi * 0.5f);
+		this.Vec2DRotateAroundOrigin(temp, MathUtils.PI / 7.2f); // +25° = +π/7.2
 		this.feelers.insert(2, agent_position.cpy().add(temp.cpy().scl(this.wallDetectionFeelerLength)));
 	}
 
@@ -510,5 +614,306 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	/* Returns a random number between -1 and 1. Values around zero are more likely. */
 	private float RandomBinomial() {
 		return MathUtils.random() - MathUtils.random();
+	}
+	
+	/**
+	 * Sets this PlayerActor as an enemy and initializes all enemy-specific components.
+	 * @param isEnemy true to mark as enemy, false for player
+	 */
+	public void setIsEnemy(boolean isEnemy) {
+		this.isEnemy = isEnemy;
+		if (isEnemy) {
+			// Initialize enemy-specific components
+			if (this.healthBar == null) {
+				this.healthBar = new com.plv.uberplayground.enemies.EnemyHealthBar();
+			}
+			if (this.behaviorLabel == null) {
+				this.behaviorLabel = new com.plv.uberplayground.enemies.EnemyBehaviorLabel();
+			}
+			if (this.healthComponent == null) {
+				this.healthComponent = new com.plv.uberplayground.enemies.HealthComponent(
+					com.plv.uberplayground.enemies.SpawnConfiguration.ENEMY_HEALTH);
+			}
+			if (this.behaviorState == null) {
+				this.behaviorState = new com.plv.uberplayground.enemies.BehaviorState();
+			}
+			if (this.patrolWaypoints == null) {
+				this.patrolWaypoints = new Array<Vector2>();
+			}
+			
+			// Configure collision category for enemy
+			if (this.body != null && this.body.getFixtureList().size > 0) {
+				Filter filter = new Filter();
+				filter.categoryBits = Configuration.EntityCategory.ENEMY_SHIP.getValue();
+				filter.maskBits = (short) (Configuration.EntityCategory.BOUNDARY.getValue() | 
+										   Configuration.EntityCategory.PLAYER_SHIP.getValue() | 
+										   Configuration.EntityCategory.PROJECTILE.getValue());
+				this.body.getFixtureList().get(0).setFilterData(filter);
+				
+				// Set user data for collision detection
+				this.body.setUserData(this);
+			}
+		} else {
+			// Clear enemy components for player
+			this.healthBar = null;
+			this.behaviorLabel = null;
+			this.healthComponent = null;
+			this.behaviorState = null;
+			this.patrolWaypoints = null;
+			
+			// Reset collision category to player
+			if (this.body != null && this.body.getFixtureList().size > 0) {
+				Filter filter = new Filter();
+				filter.categoryBits = Configuration.EntityCategory.PLAYER.getValue();
+				filter.maskBits = Configuration.EntityCategory.BOUNDARY.getValue();
+				this.body.getFixtureList().get(0).setFilterData(filter);
+			}
+		}
+	}
+	
+	/**
+	 * Returns whether this PlayerActor is an enemy.
+	 * @return true if this is an enemy, false if it's a player
+	 */
+	public boolean isEnemy() {
+		return this.isEnemy;
+	}
+	
+	/**
+	 * Gets the health bar instance for this enemy.
+	 * @return EnemyHealthBar instance, or null if not an enemy
+	 */
+	public com.plv.uberplayground.enemies.EnemyHealthBar getHealthBar() {
+		return this.healthBar;
+	}
+	
+	/**
+	 * Gets the behavior label instance for this enemy.
+	 * @return EnemyBehaviorLabel instance, or null if not an enemy
+	 */
+	public com.plv.uberplayground.enemies.EnemyBehaviorLabel getBehaviorLabel() {
+		return this.behaviorLabel;
+	}
+	
+	/**
+	 * Gets the health component for this enemy.
+	 * @return HealthComponent instance, or null if not an enemy
+	 */
+	public com.plv.uberplayground.enemies.HealthComponent getHealthComponent() {
+		return this.healthComponent;
+	}
+	
+	/**
+	 * Gets the behavior state for this enemy.
+	 * @return BehaviorState instance, or null if not an enemy
+	 */
+	public com.plv.uberplayground.enemies.BehaviorState getBehaviorState() {
+		return this.behaviorState;
+	}
+	
+	/**
+	 * Gets the patrol waypoints for this enemy.
+	 * @return Array of waypoints, or null if not an enemy
+	 */
+	public Array<Vector2> getPatrolWaypoints() {
+		return this.patrolWaypoints;
+	}
+	
+	/**
+	 * Sets the patrol waypoints for this enemy.
+	 * @param waypoints Array of Vector2 waypoints
+	 */
+	public void setPatrolWaypoints(Array<Vector2> waypoints) {
+		if (this.isEnemy) {
+			this.patrolWaypoints = waypoints;
+			this.currentWaypointIndex = 0;
+		}
+	}
+	
+	/**
+	 * Gets the current waypoint index for patrol behavior.
+	 * @return Current waypoint index
+	 */
+	public int getCurrentWaypointIndex() {
+		return this.currentWaypointIndex;
+	}
+	
+	/**
+	 * Sets the current waypoint index for patrol behavior.
+	 * @param index The waypoint index to set
+	 */
+	public void setCurrentWaypointIndex(int index) {
+		this.currentWaypointIndex = index;
+	}
+	
+	/**
+	 * Gets the current orbit angle for orbit behavior.
+	 * @return Current orbit angle in radians
+	 */
+	public float getOrbitAngle() {
+		return this.orbitAngle;
+	}
+	
+	/**
+	 * Sets the orbit angle for orbit behavior.
+	 * @param angle The orbit angle in radians
+	 */
+	public void setOrbitAngle(float angle) {
+		this.orbitAngle = angle;
+	}
+	/**
+	 * Gets the maximum speed for this actor.
+	 * @return Maximum speed value
+	 */
+	public float getMaxSpeed() {
+		return this.maxSpeed;
+	}
+
+	/**
+	 * Gets the maximum force for this actor.
+	 * @return Maximum force value
+	 */
+	public float getMaxForce() {
+		return this.maxForce;
+	}
+
+	/**
+	 * Gets the Box2D body for this actor.
+	 * @return The Box2D body
+	 */
+	public com.badlogic.gdx.physics.box2d.Body getBody() {
+		return this.body;
+	}
+
+
+	// Player target for enemy behaviors
+	private Vector2 playerTarget = null;
+
+	/**
+	 * Sets the player target position for enemy behaviors.
+	 * @param playerPosition The current player position
+	 */
+	public void setPlayerTarget(Vector2 playerPosition) {
+		if (this.isEnemy) {
+			this.playerTarget = playerPosition != null ? playerPosition.cpy() : null;
+		}
+	}
+
+	/**
+	 * Gets the current player target position.
+	 * @return Player target position, or null if not set
+	 */
+	public Vector2 getPlayerTarget() {
+		return this.playerTarget;
+	}
+
+	/**
+	 * Gets nearby enemy neighbors for flocking behavior.
+	 * Searches through all actors in the stage to find other enemies within flocking range.
+	 * @return Array of nearby enemy PlayerActors for flocking coordination
+	 */
+	private Array<PlayerActor> getFlockingNeighbors() {
+		Array<PlayerActor> neighbors = new Array<>();
+
+		if (this.getStage() == null || !this.isEnemy) {
+			return neighbors;
+		}
+
+		float flockingRange = 200.0f; // Maximum distance for flocking coordination
+		Vector2 myPosition = this.getBody().getPosition();
+
+		// Search through all actors in the stage
+		for (com.badlogic.gdx.scenes.scene2d.Actor actor : this.getStage().getActors()) {
+			if (actor instanceof PlayerActor) {
+				PlayerActor otherActor = (PlayerActor) actor;
+
+				// Skip self and non-enemies
+				if (otherActor == this || !otherActor.isEnemy()) {
+					continue;
+				}
+
+				// Check if within flocking range
+				Vector2 otherPosition = otherActor.getBody().getPosition();
+				float distance = myPosition.dst(otherPosition);
+
+				if (distance <= flockingRange) {
+					neighbors.add(otherActor);
+				}
+			}
+		}
+
+		return neighbors;
+	}
+	
+	// Nearby enemies cache for performance optimization
+	private Array<PlayerActor> nearbyEnemiesCache = null;
+	
+	/**
+	 * Sets the nearby enemies cache for flocking behavior optimization.
+	 * This is used by the EnemyManager's spatial partitioning system.
+	 * @param nearbyEnemies Array of nearby enemies
+	 */
+	public void setNearbyEnemies(Array<PlayerActor> nearbyEnemies) {
+		this.nearbyEnemiesCache = nearbyEnemies;
+	}
+	
+	/**
+	 * Gets the cached nearby enemies or falls back to stage search.
+	 * @return Array of nearby enemies for flocking behavior
+	 */
+	public Array<PlayerActor> getNearbyEnemies() {
+		if (this.nearbyEnemiesCache != null) {
+			return this.nearbyEnemiesCache;
+		} else {
+			return getFlockingNeighbors();
+		}
+	}
+	
+	/**
+	 * Sets the health percentage from an external health system.
+	 * This is used to synchronize the health bar display with the centralized health system.
+	 * @param healthPercentage The current health percentage (0.0 to 1.0)
+	 */
+	public void setHealthPercentage(float healthPercentage) {
+		if (this.healthComponent != null) {
+			// Update the local health component to match the external health system
+			int newHealth = Math.round(healthPercentage * this.healthComponent.getMaxHealth());
+			int currentHealth = this.healthComponent.getCurrentHealth();
+			
+			// Apply damage to sync with external system
+			if (newHealth < currentHealth) {
+				this.healthComponent.takeDamage(currentHealth - newHealth, 0.0f);
+			}
+		}
+	}
+	
+	/**
+	 * Override remove to ensure proper cleanup of physics body and resources.
+	 * This is called when the actor is removed from the stage.
+	 */
+	@Override
+	public boolean remove() {
+		// Debug logging for enemy removal
+		if (this.isEnemy) {
+			Gdx.app.log("EnemyCleanup", "Removing enemy PlayerActor - deferring physics body cleanup");
+		}
+		
+		// Don't dispose physics body immediately - let it be handled by the world disposal
+		// This prevents Box2D crashes during collision processing
+		// The physics body will be cleaned up when the world is disposed
+		
+		// Call parent remove method (removes from stage)
+		return super.remove();
+	}
+	
+	/**
+	 * Manual disposal method for when we need to force cleanup.
+	 * Only call this when we're sure no collision processing is happening.
+	 */
+	public void forceDispose() {
+		if (this.isEnemy) {
+			Gdx.app.log("EnemyCleanup", "Force disposing enemy physics body");
+		}
+		this.dispose();
 	}
 }

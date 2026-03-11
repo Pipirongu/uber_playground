@@ -21,4 +21,17 @@ public class ControlPointActor extends AnimatedPhysicsActor {
 		filter.maskBits = (short) (Configuration.EntityCategory.PLAYER.getValue() | Configuration.EntityCategory.BOUNDARY.getValue());
 		this.body.getFixtureList().get(0).setFilterData(filter);
 	}
+	
+	/**
+	 * Override remove to ensure proper cleanup of physics body and resources.
+	 * This is called when the actor is removed from the stage.
+	 */
+	@Override
+	public boolean remove() {
+		// Dispose of physics body and particle effects
+		this.dispose();
+		
+		// Call parent remove method
+		return super.remove();
+	}
 }

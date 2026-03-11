@@ -156,4 +156,23 @@ public class AnimatedPhysicsActor extends Actor {
 	public Body getBody() {
 		return this.body;
 	}
+	
+	/**
+	 * Properly disposes of the physics body and particle effects.
+	 * This should be called when the actor is being removed from the game.
+	 */
+	public void dispose() {
+		// Dispose of particle effects
+		if (this.pe != null) {
+			this.pe.dispose();
+			this.pe = null;
+		}
+		
+		// Destroy the physics body from the Box2D world
+		if (this.body != null && this.world != null) {
+			com.badlogic.gdx.Gdx.app.log("PhysicsCleanup", "Destroying physics body for actor");
+			this.world.destroyBody(this.body);
+			this.body = null;
+		}
+	}
 }

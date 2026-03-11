@@ -96,6 +96,25 @@ public class ProjectilePool {
         }
         pool.clear();
     }
+
+    /**
+     * Clears all active projectiles from the game without disposing the pool.
+     * This deactivates all active projectiles and removes them from the stage.
+     * Used during game over state to clear all projectiles from the game.
+     */
+    public void clearAllActive() {
+        for (Projectile projectile : pool) {
+            if (projectile.isActive()) {
+                // Deactivate the projectile
+                projectile.deactivate();
+
+                // Remove from stage if present
+                if (projectile.getStage() != null) {
+                    projectile.remove();
+                }
+            }
+        }
+    }
     
     /**
      * Recreate the projectile pool with fresh instances to pick up any speed changes

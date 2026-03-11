@@ -29,26 +29,44 @@ public class MainMenuScreen implements Screen {
     private OrthographicCamera mainCamera;
 
     public MainMenuScreen(final UberPlayground app) {
-        this.app = app;
-        this.mainCamera = new OrthographicCamera();
-        this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
-        Gdx.input.setInputProcessor(stage);
+        this.app = app; // Initialize app first
+        
+        try {
+            this.mainCamera = new OrthographicCamera();
+            this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+            Gdx.input.setInputProcessor(stage);
 
-        //
-        this.start_button = new Texture( Gdx.files.internal("ui/btn_play.png") );
-        ImageButton btnPlay = new ImageButton(new TextureRegionDrawable(new TextureRegion(this.start_button)));
-        btnPlay.setPosition(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT/2, Align.center);
-        this.stage.addActor(btnPlay);
+            // Load button texture
+            this.start_button = new Texture( Gdx.files.internal("ui/btn_play.png") );
+            ImageButton btnPlay = new ImageButton(new TextureRegionDrawable(new TextureRegion(this.start_button)));
+            btnPlay.setPosition(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT/2, Align.center);
+            this.stage.addActor(btnPlay);
 
-        // Setting listeners
-        btnPlay.addListener(new InputListener() {
-            @Override
-            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
-                //change to game screen
-                app.setScreen(new GameScreen(app));
-                return false;
+            // Setting listeners
+            btnPlay.addListener(new InputListener() {
+                @Override
+                public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                    try {
+                        //change to game screen
+                        app.setScreen(new GameScreen(app));
+                    } catch (Exception e) {
+                        Gdx.app.error("MainMenu", "Error creating GameScreen: " + e.getMessage());
+                        // Stay on main menu if game screen creation fails
+                    }
+                    return false;
+                }
+            });
+            
+            Gdx.app.log("MainMenu", "MainMenuScreen initialized successfully");
+        } catch (Exception e) {
+            Gdx.app.error("MainMenu", "Error initializing MainMenuScreen: " + e.getMessage());
+            // Create minimal fallback if initialization fails
+            if (this.stage == null) {
+                this.mainCamera = new OrthographicCamera();
+                this.stage = new Stage(new FillViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, this.mainCamera));
+                Gdx.input.setInputProcessor(stage);
             }
-        });
+        }
     }
 
     @Override
@@ -119,7 +137,20 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void dispose() {
-        this.start_button.dispose();
-        this.stage.dispose();
+        try {
+            if (this.start_button != null) {
+                this.start_button.dispose();
+            }
+        } catch (Exception e) {
+            Gdx.app.error("MainMenu", "Error disposing start button texture: " + e.getMessage());
+        }
+        
+        try {
+            if (this.stage != null) {
+                this.stage.dispose();
+            }
+        } catch (Exception e) {
+            Gdx.app.error("MainMenu", "Error disposing stage: " + e.getMessage());
+        }
     }
 }

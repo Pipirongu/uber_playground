@@ -45,6 +45,9 @@ public class Projectile extends AnimatedPhysicsActor {
 
         // Set as non-sensor (physical collision)
         this.body.getFixtureList().get(0).setSensor(false);
+        
+        // Set user data for collision detection
+        this.body.setUserData(this);
 
         // Initialize state
         this.timeAlive = 0.0f;
