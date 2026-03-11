@@ -69,6 +69,12 @@ public class EnemyHealthBar {
     public void render(ShapeRenderer renderer, Camera camera, Vector2 enemyPosition, 
                       float healthPercentage, boolean forceRender) {
         
+        // Early return for pooled enemies at (0,0) - prevents visual artifacts
+        boolean isPooledPosition = (enemyPosition.x == 0 && enemyPosition.y == 0);
+        if (isPooledPosition) {
+            return; // Skip rendering for pooled enemies
+        }
+        
         // Enhanced optimization: only render if health changed or forced
         if (!forceRender && Math.abs(healthPercentage - lastRenderedHealth) < 0.001f) {
             return; // Skip rendering - no significant change

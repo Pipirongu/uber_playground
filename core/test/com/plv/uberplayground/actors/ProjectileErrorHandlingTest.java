@@ -14,8 +14,8 @@ public class ProjectileErrorHandlingTest {
     @Test
     @DisplayName("Projectile speed constant is correct")
     public void testProjectileSpeedConstant() {
-        assertEquals(5000.0f, Projectile.PROJECTILE_SPEED, 0.001f, 
-                     "Projectile speed should be 5000.0 pixels/second");
+        assertEquals(7500.0f, Projectile.PROJECTILE_SPEED, 0.001f, 
+                     "Projectile speed should be 7500.0 pixels/second");
     }
     
     @Test

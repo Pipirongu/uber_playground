@@ -1,5 +1,6 @@
 package com.plv.uberplayground.enemies;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.TimeUtils;
@@ -7,23 +8,38 @@ import com.plv.uberplayground.actors.PlayerActor;
 
 /**
  * Performance optimization utilities for the enhanced enemy system.
- * Provides optimizations for 60 FPS performance with 10 active enemies.
+ * Provides optimizations for 30+ FPS performance with up to 50 active enemies.
+ * Enhanced for dynamic spawning system with performance-adaptive spawn rate control.
  * 
  * Key optimizations:
+ * - Frame rate monitoring and spawn rate adjustment feedback
+ * - Performance-adaptive spawn rate reduction
+ * - Distributed spawning across multiple frames
  * - Health bar rendering optimization (only update when health changes)
  * - Behavior calculation batching and caching
  * - Memory pool management for frequent allocations
  * - Spatial partitioning for collision detection optimization
  * 
- * Requirements: 8.1, 8.3, 8.5
+ * Requirements: 4.1, 4.3, 4.4, 8.1, 8.3, 8.5
  */
 public class PerformanceOptimizer {
     
-    // Performance monitoring
+    // Performance monitoring for dynamic spawning
     private static long lastFrameTime = 0;
     private static float averageFrameTime = 16.67f; // Target 60 FPS
     private static int frameCount = 0;
     private static final int FRAME_SAMPLE_SIZE = 60; // Sample over 1 second
+    private static final float TARGET_FRAME_TIME = 33.33f; // 30 FPS minimum (33.33ms)
+    
+    // Dynamic spawning performance feedback
+    private static DynamicSpawnController spawnController;
+    private static float performanceCheckInterval = 1.0f; // Check every second
+    private static float timeSinceLastCheck = 0.0f;
+    private static boolean performanceReductionTriggered = false;
+    
+    // Distributed spawning support
+    private static final int MAX_SPAWNS_PER_FRAME = 2;
+    private static int spawnsThisFrame = 0;
     
     // Memory pools for frequent allocations
     private static final Array<Vector2> vectorPool = new Array<>();
@@ -45,20 +61,34 @@ public class PerformanceOptimizer {
     }
     
     /**
-     * Starts performance monitoring for a frame.
+     * Set the DynamicSpawnController for performance feedback integration.
+     * This allows the PerformanceOptimizer to provide spawn rate adjustment feedback
+     * when performance drops below acceptable thresholds.
+     * 
+     * @param controller The DynamicSpawnController to integrate with
+     */
+    public static void setSpawnController(DynamicSpawnController controller) {
+        spawnController = controller;
+    }
+    
+    /**
+     * Starts performance monitoring for a frame and resets distributed spawning counters.
      * Call this at the beginning of each game update cycle.
      */
     public static void startFrame() {
         lastFrameTime = TimeUtils.nanoTime();
+        spawnsThisFrame = 0; // Reset spawn counter for distributed spawning
     }
     
     /**
      * Ends performance monitoring for a frame and updates statistics.
+     * Monitors performance and triggers spawn rate reduction if needed.
      * Call this at the end of each game update cycle.
      * 
+     * @param delta The frame delta time for performance monitoring
      * @return Current frame time in milliseconds
      */
-    public static float endFrame() {
+    public static float endFrame(float delta) {
         long currentTime = TimeUtils.nanoTime();
         float frameTimeMs = (currentTime - lastFrameTime) / 1_000_000.0f;
         
@@ -72,7 +102,52 @@ public class PerformanceOptimizer {
             averageFrameTime = frameTimeMs;
         }
         
+        // Monitor performance and adjust spawn rates if needed
+        monitorPerformanceAndAdjustSpawning(delta);
+        
         return frameTimeMs;
+    }
+    
+    /**
+     * Monitor performance and trigger spawn rate adjustments when needed.
+     * This implements the performance-adaptive spawn rate reduction requirement.
+     * 
+     * @param delta The frame delta time
+     */
+    private static void monitorPerformanceAndAdjustSpawning(float delta) {
+        if (spawnController == null) {
+            return; // No spawn controller to adjust
+        }
+        
+        timeSinceLastCheck += delta;
+        
+        // Check performance every second
+        if (timeSinceLastCheck >= performanceCheckInterval) {
+            timeSinceLastCheck = 0.0f;
+            
+            boolean currentlyBelowThreshold = averageFrameTime > TARGET_FRAME_TIME;
+            
+            if (currentlyBelowThreshold && !performanceReductionTriggered) {
+                // Performance dropped below 30 FPS, trigger reduction
+                spawnController.setPerformanceReduction(true);
+                performanceReductionTriggered = true;
+                
+                if (Gdx.app != null) {
+                    Gdx.app.log("PerformanceOptimizer", 
+                        String.format("Performance below threshold (%.2fms > %.2fms). Reducing spawn rate.", 
+                                    averageFrameTime, TARGET_FRAME_TIME));
+                }
+            } else if (!currentlyBelowThreshold && performanceReductionTriggered) {
+                // Performance recovered, disable reduction
+                spawnController.setPerformanceReduction(false);
+                performanceReductionTriggered = false;
+                
+                if (Gdx.app != null) {
+                    Gdx.app.log("PerformanceOptimizer", 
+                        "Performance recovered. Restoring normal spawn rate.");
+                }
+            }
+        }
     }
     
     /**
@@ -84,11 +159,50 @@ public class PerformanceOptimizer {
     }
     
     /**
-     * Checks if the system is meeting 60 FPS performance target.
+     * Checks if the system is meeting 30 FPS performance target for dynamic spawning.
+     * Updated threshold for dynamic spawning system with up to 50 enemies.
+     * 
      * @return true if performance is acceptable, false if optimization needed
      */
     public static boolean isPerformanceAcceptable() {
-        return averageFrameTime <= 18.0f; // Allow 8% overhead over 16.67ms target
+        return averageFrameTime <= TARGET_FRAME_TIME; // 30 FPS minimum for dynamic spawning
+    }
+    
+    /**
+     * Checks if distributed spawning should be used for the current frame.
+     * Implements distributed spawning across multiple frames requirement.
+     * 
+     * @return true if spawning should be distributed, false if immediate spawning is okay
+     */
+    public static boolean shouldDistributeSpawning() {
+        return spawnsThisFrame >= MAX_SPAWNS_PER_FRAME || averageFrameTime > (TARGET_FRAME_TIME * 0.8f);
+    }
+    
+    /**
+     * Records that a spawn operation occurred this frame for distributed spawning tracking.
+     * Call this whenever an enemy is spawned to track spawn distribution.
+     */
+    public static void recordSpawnOperation() {
+        spawnsThisFrame++;
+    }
+    
+    /**
+     * Gets the number of spawns that have occurred this frame.
+     * Used for distributed spawning logic.
+     * 
+     * @return Number of spawns this frame
+     */
+    public static int getSpawnsThisFrame() {
+        return spawnsThisFrame;
+    }
+    
+    /**
+     * Gets the maximum allowed spawns per frame for distributed spawning.
+     * 
+     * @return Maximum spawns per frame
+     */
+    public static int getMaxSpawnsPerFrame() {
+        return MAX_SPAWNS_PER_FRAME;
     }
     
     /**
@@ -168,13 +282,27 @@ public class PerformanceOptimizer {
     
     /**
      * Optimized behavior calculation that batches updates and uses caching.
+     * Enhanced for 50 enemy capacity with performance monitoring.
      * 
      * @param enemies Array of enemies to update
      * @param playerPosition Current player position
      * @param delta Time delta for this frame
      */
     public static void optimizedBehaviorUpdate(Array<PlayerActor> enemies, Vector2 playerPosition, float delta) {
-        // Batch behavior updates to reduce overhead
+        // Skip behavior updates if performance is critically poor
+        if (averageFrameTime > TARGET_FRAME_TIME * 1.5f) {
+            // Only update every other enemy when performance is very poor
+            for (int i = 0; i < enemies.size; i += 2) {
+                PlayerActor enemy = enemies.get(i);
+                if (enemy.getBehaviorState() != null) {
+                    enemy.setPlayerTarget(playerPosition);
+                    updateBehaviorOptimized(enemy, delta);
+                }
+            }
+            return;
+        }
+        
+        // Normal behavior updates for all enemies
         for (PlayerActor enemy : enemies) {
             if (enemy.getBehaviorState() != null) {
                 // Use cached player position to avoid repeated calculations
@@ -188,6 +316,7 @@ public class PerformanceOptimizer {
     
     /**
      * Optimized individual behavior update with reduced calculations.
+     * Enhanced for dynamic spawning system performance requirements.
      */
     private static void updateBehaviorOptimized(PlayerActor enemy, float delta) {
         BehaviorState behaviorState = enemy.getBehaviorState();
@@ -203,11 +332,16 @@ public class PerformanceOptimizer {
             
             float distanceToPlayer = enemyPos.dst(playerPos);
             
-            // Reduce update frequency for distant enemies (performance optimization)
-            if (distanceToPlayer > 400.0f) {
+            // Enhanced distance-based optimization for 50 enemy capacity
+            if (distanceToPlayer > 600.0f) {
+                // Update every 4th frame for very distant enemies
+                if (frameCount % 4 != 0) {
+                    returnVector(enemyPos);
+                    return;
+                }
+            } else if (distanceToPlayer > 400.0f) {
                 // Update every other frame for distant enemies
                 if (frameCount % 2 == 0) {
-                    // Skip this frame for distant enemies
                     returnVector(enemyPos);
                     return;
                 }
@@ -219,6 +353,7 @@ public class PerformanceOptimizer {
     
     /**
      * Spatial partitioning optimization for collision detection.
+     * Enhanced grid size for 50 enemy capacity and improved performance.
      * Groups enemies by grid cells to reduce collision check complexity.
      * 
      * @param enemies Array of all enemies
@@ -235,7 +370,7 @@ public class PerformanceOptimizer {
             }
         }
         
-        // Assign enemies to grid cells
+        // Assign enemies to grid cells with bounds checking for 50 enemy capacity
         for (PlayerActor enemy : enemies) {
             int gridX = Math.max(0, Math.min(GRID_SIZE - 1, (int) (enemy.getX() / CELL_WIDTH)));
             int gridY = Math.max(0, Math.min(GRID_SIZE - 1, (int) (enemy.getY() / CELL_HEIGHT)));
@@ -296,14 +431,61 @@ public class PerformanceOptimizer {
     
     /**
      * Gets performance statistics for monitoring.
+     * Enhanced with dynamic spawning performance metrics.
      * 
      * @return Performance statistics string
      */
     public static String getPerformanceStats() {
-        return String.format("Avg Frame: %.2fms, Target: 16.67ms, Status: %s, Cache: %d entries", 
+        String performanceStatus = isPerformanceAcceptable() ? "OK" : "SLOW";
+        String spawnReductionStatus = performanceReductionTriggered ? "ACTIVE" : "INACTIVE";
+        
+        return String.format("Avg Frame: %.2fms, Target: %.2fms, Status: %s, Cache: %d entries, " +
+                           "Spawns/Frame: %d/%d, Reduction: %s", 
                            averageFrameTime, 
-                           isPerformanceAcceptable() ? "OK" : "SLOW",
-                           healthBarCache.size);
+                           TARGET_FRAME_TIME,
+                           performanceStatus,
+                           healthBarCache.size,
+                           spawnsThisFrame,
+                           MAX_SPAWNS_PER_FRAME,
+                           spawnReductionStatus);
+    }
+    
+    /**
+     * Gets the current frame rate in FPS.
+     * 
+     * @return Current frame rate
+     */
+    public static float getCurrentFPS() {
+        return averageFrameTime > 0 ? 1000.0f / averageFrameTime : 0.0f;
+    }
+    
+    /**
+     * Checks if performance reduction is currently active.
+     * 
+     * @return true if spawn rate reduction is active due to poor performance
+     */
+    public static boolean isPerformanceReductionActive() {
+        return performanceReductionTriggered;
+    }
+    
+    /**
+     * Forces a performance check and adjustment.
+     * Useful for immediate performance response during critical situations.
+     */
+    public static void forcePerformanceCheck() {
+        if (spawnController != null) {
+            boolean shouldReduce = averageFrameTime > TARGET_FRAME_TIME;
+            
+            if (shouldReduce != performanceReductionTriggered) {
+                spawnController.setPerformanceReduction(shouldReduce);
+                performanceReductionTriggered = shouldReduce;
+                
+                if (Gdx.app != null) {
+                    Gdx.app.log("PerformanceOptimizer", 
+                        "Forced performance check: " + (shouldReduce ? "Reducing" : "Restoring") + " spawn rate.");
+                }
+            }
+        }
     }
     
     /**

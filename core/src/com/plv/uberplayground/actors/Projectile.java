@@ -8,7 +8,7 @@ import com.plv.uberplayground.config.Configuration;
 
 public class Projectile extends AnimatedPhysicsActor {
     // Constants
-    public static final float PROJECTILE_SPEED = 5000.0f; // Pixels per second for direct position updates
+    public static final float PROJECTILE_SPEED = 7500.0f; // Pixels per second for direct position updates
     public static final float PROJECTILE_LIFETIME = 15.0f;
 
     // Fields
@@ -23,7 +23,8 @@ public class Projectile extends AnimatedPhysicsActor {
     }
 
     public Projectile(String animationName, World world, int frameCols, int frameRows) {
-        super(animationName, world, 0, 0, frameCols, frameRows);
+        // Create projectile at off-screen position initially to avoid debug renderer artifacts at (0,0)
+        super(animationName, world, -1000, -1000, frameCols, frameRows, 20.0f);
 
         // Configure physics body for projectile
         this.body.setType(BodyDef.BodyType.DynamicBody);

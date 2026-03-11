@@ -1,5 +1,6 @@
 package com.plv.uberplayground.enemies;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.plv.uberplayground.actors.PlayerActor;
@@ -21,6 +22,12 @@ public class SteeringBehaviorLibrary {
      * @return Steering force vector pointing away from the target
      */
     public static Vector2 flee(PlayerActor enemy, Vector2 target) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null || target == null) {
+            Gdx.app.error("SteeringBehaviorLibrary", "Cannot perform flee: enemy, body, or target is null");
+            return new Vector2(); // Return zero vector
+        }
+        
         // Use pooled vectors to reduce allocations
         Vector2 desiredVelocity = PerformanceOptimizer.getPooledVector();
         Vector2 steeringForce = PerformanceOptimizer.getPooledVector();
@@ -56,6 +63,12 @@ public class SteeringBehaviorLibrary {
      * @return Steering force vector toward the current waypoint
      */
     public static Vector2 patrol(PlayerActor enemy, Array<Vector2> waypoints) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null) {
+            Gdx.app.error("SteeringBehaviorLibrary", "Cannot perform patrol: enemy or body is null");
+            return new Vector2(); // Return zero vector
+        }
+        
         if (waypoints == null || waypoints.size == 0) {
             // Fall back to wander if no waypoints
             return enemy.Wander();
@@ -92,6 +105,12 @@ public class SteeringBehaviorLibrary {
      * @return Steering force vector to maintain circular orbit
      */
     public static Vector2 orbit(PlayerActor enemy, Vector2 center, float radius) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null || center == null) {
+            Gdx.app.error("SteeringBehaviorLibrary", "Cannot perform orbit: enemy, body, or center is null");
+            return new Vector2(); // Return zero vector
+        }
+        
         // Use pooled vectors for calculations
         Vector2 enemyPosition = PerformanceOptimizer.getPooledVector();
         Vector2 toCenter = PerformanceOptimizer.getPooledVector();
@@ -225,6 +244,12 @@ public class SteeringBehaviorLibrary {
      * @return Steering force vector for group coordination
      */
     public static Vector2 flock(PlayerActor enemy, Array<PlayerActor> neighbors) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null) {
+            Gdx.app.error("SteeringBehaviorLibrary", "Cannot perform flock: enemy or body is null");
+            return new Vector2(); // Return zero vector
+        }
+        
         // Use pooled vectors for calculations
         Vector2 separation = PerformanceOptimizer.getPooledVector();
         Vector2 alignment = PerformanceOptimizer.getPooledVector();
@@ -361,6 +386,12 @@ public class SteeringBehaviorLibrary {
      * Optimized separation component using pooled vectors and reduced allocations.
      */
     private static void separateOptimized(PlayerActor enemy, Array<PlayerActor> neighbors, Vector2 result) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null || result == null) {
+            if (result != null) result.set(0, 0);
+            return;
+        }
+        
         float separationRadius = 50.0f;
         result.set(0, 0);
         int count = 0;
@@ -370,7 +401,7 @@ public class SteeringBehaviorLibrary {
         
         try {
             for (PlayerActor neighbor : neighbors) {
-                if (neighbor == enemy || !neighbor.isEnemy()) continue;
+                if (neighbor == enemy || !neighbor.isEnemy() || neighbor.getBody() == null) continue;
                 
                 Vector2 neighborPosition = neighbor.getBody().getPosition();
                 float distanceSquared = enemyPosition.dst2(neighborPosition); // Use squared distance for performance
@@ -401,6 +432,12 @@ public class SteeringBehaviorLibrary {
      * Optimized alignment component using pooled vectors and reduced allocations.
      */
     private static void alignOptimized(PlayerActor enemy, Array<PlayerActor> neighbors, Vector2 result) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null || result == null) {
+            if (result != null) result.set(0, 0);
+            return;
+        }
+        
         float alignmentRadius = 100.0f;
         result.set(0, 0);
         int count = 0;
@@ -412,7 +449,7 @@ public class SteeringBehaviorLibrary {
             sum.set(0, 0);
             
             for (PlayerActor neighbor : neighbors) {
-                if (neighbor == enemy || !neighbor.isEnemy()) continue;
+                if (neighbor == enemy || !neighbor.isEnemy() || neighbor.getBody() == null) continue;
                 
                 Vector2 neighborPosition = neighbor.getBody().getPosition();
                 float distanceSquared = enemyPosition.dst2(neighborPosition); // Use squared distance
@@ -439,6 +476,12 @@ public class SteeringBehaviorLibrary {
      * Optimized cohesion component using pooled vectors and reduced allocations.
      */
     private static void cohereOptimized(PlayerActor enemy, Array<PlayerActor> neighbors, Vector2 result) {
+        // Add null check to prevent crashes
+        if (enemy == null || enemy.getBody() == null || result == null) {
+            if (result != null) result.set(0, 0);
+            return;
+        }
+        
         float cohesionRadius = 150.0f;
         result.set(0, 0);
         int count = 0;
@@ -450,7 +493,7 @@ public class SteeringBehaviorLibrary {
             sum.set(0, 0);
             
             for (PlayerActor neighbor : neighbors) {
-                if (neighbor == enemy || !neighbor.isEnemy()) continue;
+                if (neighbor == enemy || !neighbor.isEnemy() || neighbor.getBody() == null) continue;
                 
                 Vector2 neighborPosition = neighbor.getBody().getPosition();
                 float distanceSquared = enemyPosition.dst2(neighborPosition); // Use squared distance

@@ -1,0 +1,19 @@
+{
+  "spawnConfiguration": {
+    "baseSpawnRate": 0.2,
+    "maxSpawnRate": 1.0,
+    "maxEnemies": 50,
+    "scalingFactor": 1.0,
+    "targetDuration": 60.0,
+    "scalingType": "LINEAR"
+  },
+  "performanceConfiguration": {
+    "minFrameRate": 30.0,
+    "performanceReductionFactor": 0.8
+  },
+  "gameStateConfiguration": {
+    "preserveScalingOnPause": true,
+    "resetOnGameOver": true,
+    "resetOnNewGame": true
+  }
+}

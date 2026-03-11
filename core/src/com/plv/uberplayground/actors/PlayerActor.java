@@ -104,6 +104,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	public void act(float delta){
 		super.act(delta);
 
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			Gdx.app.error("PlayerActor", "Cannot act: physics body is null");
+			return;
+		}
+
 		// Update behavior state for enemies
 		if (this.isEnemy && this.behaviorState != null) {
 			this.behaviorState.update(delta);
@@ -111,10 +117,13 @@ public class PlayerActor extends AnimatedPhysicsActor {
 
 		Vector2 steeringForce = this.CalculateSteeringForce();
 		
-
-
-		for(int i = 0;i<Configuration.Walls.size;i++){
-			Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
+		// Only render walls if this actor is visible and on stage and not at pooled position
+		Vector2 currentPosition = this.body.getPosition();
+		boolean isPooledPosition = (currentPosition.x == 0 && currentPosition.y == 0);
+		if (this.isVisible() && this.getStage() != null && !isPooledPosition) {
+			for(int i = 0;i<Configuration.Walls.size;i++){
+				Configuration.Walls.get(i).Render(this.shapeRenderer, this.getStage().getCamera(), true);
+			}
 		}
 		this.body.applyForceToCenter(this.steeringForce, true);
 		Vector2 smoothedHeading = this.smoother.Update(this.body.getLinearVelocity().cpy());
@@ -122,19 +131,29 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		this.body.setTransform(this.body.getPosition(), this.heading);
 		
 		// Render health bar for enemies with performance optimization
-		if (this.isEnemy && this.healthBar != null && this.healthComponent != null) {
-			float healthPercentage = this.healthComponent.getHealthPercentage();
-			
-			// Always render health bar for debugging - remove performance optimization temporarily
+		if (this.isEnemy && this.healthBar != null && this.healthComponent != null && this.isVisible() && this.getStage() != null) {
 			Vector2 enemyPosition = this.body.getPosition();
-			this.healthBar.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, healthPercentage, true);
+			
+			// Skip rendering if enemy is at pooled position (0,0)
+			boolean isHealthBarPooledPosition = (enemyPosition.x == 0 && enemyPosition.y == 0);
+			if (!isHealthBarPooledPosition) {
+				float healthPercentage = this.healthComponent.getHealthPercentage();
+				
+				// Always render health bar for debugging - remove performance optimization temporarily
+				this.healthBar.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, healthPercentage, true);
+			}
 		}
 		
 		// Render behavior label for enemies
-		if (this.isEnemy && this.behaviorLabel != null && this.behaviorState != null) {
-			com.plv.uberplayground.enemies.SteeringBehaviorType currentBehavior = this.behaviorState.getCurrentType();
+		if (this.isEnemy && this.behaviorLabel != null && this.behaviorState != null && this.isVisible() && this.getStage() != null) {
 			Vector2 enemyPosition = this.body.getPosition();
-			this.behaviorLabel.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, currentBehavior, true);
+			
+			// Skip rendering if enemy is at pooled position (0,0)
+			boolean isBehaviorLabelPooledPosition = (enemyPosition.x == 0 && enemyPosition.y == 0);
+			if (!isBehaviorLabelPooledPosition) {
+				com.plv.uberplayground.enemies.SteeringBehaviorType currentBehavior = this.behaviorState.getCurrentType();
+				this.behaviorLabel.render(this.shapeRenderer, this.getStage().getCamera(), enemyPosition, currentBehavior, true);
+			}
 		}
 	}
 
@@ -151,6 +170,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	}
 
 	public void CalculateHeading(Vector2 smoothedHeading){
+		// Add null check to prevent crashes
+		if (smoothedHeading == null) {
+			Gdx.app.error("PlayerActor", "Cannot calculate heading: smoothed heading is null");
+			return;
+		}
+		
 		//if(this.body.getLinearVelocity().len2() > 0.00000001f){
 			this.heading = smoothedHeading.angleRad() - MathUtils.PI / 2f;
 			while (this.heading < -MathUtils.PI) {
@@ -292,6 +317,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	
 	//returns steering force
 	public Vector2 Arrive(){
+		// Add null checks to prevent crashes
+		if (this.body == null || this.controlPoint == null || this.controlPoint.getBody() == null) {
+			Gdx.app.error("PlayerActor", "Cannot perform arrive: body or control point is null");
+			return new Vector2(); // Return zero vector
+		}
+		
 		// First we get the direction we need to travel in
 		Vector2 desiredVelocity = (this.controlPoint.getBody().getPosition().cpy().sub(this.body.getPosition()));
 		float distance = desiredVelocity.len();
@@ -310,20 +341,32 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	}
 
 	public Vector2 Seek(Vector2 target){
-			// First we get the direction we need to travel in
-			Vector2 desiredVelocity = target.sub(this.body.getPosition());
-			desiredVelocity.nor();
-			desiredVelocity.scl(this.maxSpeed); // Scale by maxSpeed to get proper force magnitude
-
-			// Subtract the current velocity. This is the calibration force
-			Vector2 steeringForce = new Vector2(0,0);
-			steeringForce = desiredVelocity.cpy().sub(this.body.getLinearVelocity());
-			steeringForce.limit(this.maxForce); // Limit by maxForce to prevent excessive forces
-
-			return steeringForce;
+		// Add null check to prevent crashes
+		if (this.body == null || target == null) {
+			Gdx.app.error("PlayerActor", "Cannot perform seek: body or target is null");
+			return new Vector2(); // Return zero vector
 		}
+		
+		// First we get the direction we need to travel in
+		Vector2 desiredVelocity = target.sub(this.body.getPosition());
+		desiredVelocity.nor();
+		desiredVelocity.scl(this.maxSpeed); // Scale by maxSpeed to get proper force magnitude
+
+		// Subtract the current velocity. This is the calibration force
+		Vector2 steeringForce = new Vector2(0,0);
+		steeringForce = desiredVelocity.cpy().sub(this.body.getLinearVelocity());
+		steeringForce.limit(this.maxForce); // Limit by maxForce to prevent excessive forces
+
+		return steeringForce;
+	}
 
 	public Vector2 Wander(){
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			Gdx.app.error("PlayerActor", "Cannot perform wander: body is null");
+			return new Vector2(); // Return zero vector
+		}
+		
 		// Track rotation to prevent full circles
 		float headingDelta = this.heading - this.previousHeading;
 		
@@ -381,19 +424,25 @@ public class PlayerActor extends AnimatedPhysicsActor {
 		Vector2 targetPosition = circleCenter.cpy().add(wanderDirection.cpy().scl(this.circleRadius));
 		
 		if(Configuration.isDebug){
-			//debug draw - red circle shows wander circle, green dot shows target
-			this.shapeRenderer.setColor(Color.RED);
-			this.shapeRenderer.begin(ShapeType.Line);
-			Matrix4 mat = this.getStage().getCamera().combined.cpy();
-			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.circle(circleCenter.x, circleCenter.y, this.circleRadius, 20);
-			this.shapeRenderer.end();
+			// Skip debug rendering if enemy is at pooled position (0,0)
+			Vector2 currentPosition = this.body.getPosition();
+			boolean isPooledPosition = (currentPosition.x == 0 && currentPosition.y == 0);
+			
+			if (!isPooledPosition) {
+				//debug draw - red circle shows wander circle, green dot shows target
+				this.shapeRenderer.setColor(Color.RED);
+				this.shapeRenderer.begin(ShapeType.Line);
+				Matrix4 mat = this.getStage().getCamera().combined.cpy();
+				this.shapeRenderer.setProjectionMatrix(mat);
+				this.shapeRenderer.circle(circleCenter.x, circleCenter.y, this.circleRadius, 20);
+				this.shapeRenderer.end();
 
-			this.shapeRenderer.setColor(Color.GREEN);
-			this.shapeRenderer.begin(ShapeType.Filled);
-			this.shapeRenderer.setProjectionMatrix(mat);
-			this.shapeRenderer.circle(targetPosition.x, targetPosition.y, 0.1f * scale, 20);
-			this.shapeRenderer.end();
+				this.shapeRenderer.setColor(Color.GREEN);
+				this.shapeRenderer.begin(ShapeType.Filled);
+				this.shapeRenderer.setProjectionMatrix(mat);
+				this.shapeRenderer.circle(targetPosition.x, targetPosition.y, 0.1f * scale, 20);
+				this.shapeRenderer.end();
+			}
 		}
 		
 		return this.Seek(targetPosition);
@@ -463,26 +512,38 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	public Vector2 WallAvoidance(Array<Wall> walls){ //input wall array
 		//create feelers 3x
 		this.CreateFeelers();
+		
+		// Add null check to prevent crashes if body is null
+		if (this.body == null || this.feelers.size == 0) {
+			Gdx.app.error("PlayerActor", "Cannot perform wall avoidance: physics body is null or no feelers created");
+			return new Vector2(); // Return zero vector
+		}
 	
 		//debug draw feelers
-		this.shapeRenderer.setColor(Color.BLUE);
-		this.shapeRenderer.begin(ShapeType.Line);
-		Matrix4 mat = this.getStage().getCamera().combined.cpy();
-		this.shapeRenderer.setProjectionMatrix(mat);
-		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(0));
-		this.shapeRenderer.end();
-	
-		this.shapeRenderer.setColor(Color.BLUE);
-		this.shapeRenderer.begin(ShapeType.Line);
-		this.shapeRenderer.setProjectionMatrix(mat);
-		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(1));
-		this.shapeRenderer.end();
-	
-		this.shapeRenderer.setColor(Color.BLUE);
-		this.shapeRenderer.begin(ShapeType.Line);
-		this.shapeRenderer.setProjectionMatrix(mat);
-		this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(2));
-		this.shapeRenderer.end();
+		// Debug draw feelers - only if not at pooled position
+		Vector2 currentPosition = this.body.getPosition();
+		boolean isPooledPosition = (currentPosition.x == 0 && currentPosition.y == 0);
+		
+		if (!isPooledPosition) {
+			this.shapeRenderer.setColor(Color.BLUE);
+			this.shapeRenderer.begin(ShapeType.Line);
+			Matrix4 mat = this.getStage().getCamera().combined.cpy();
+			this.shapeRenderer.setProjectionMatrix(mat);
+			this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(0));
+			this.shapeRenderer.end();
+
+			this.shapeRenderer.setColor(Color.BLUE);
+			this.shapeRenderer.begin(ShapeType.Line);
+			this.shapeRenderer.setProjectionMatrix(mat);
+			this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(1));
+			this.shapeRenderer.end();
+
+			this.shapeRenderer.setColor(Color.BLUE);
+			this.shapeRenderer.begin(ShapeType.Line);
+			this.shapeRenderer.setProjectionMatrix(mat);
+			this.shapeRenderer.line(this.body.getPosition(),this.feelers.get(2));
+			this.shapeRenderer.end();
+		}
 	
 	
 		//wall avoidance code starts here
@@ -538,6 +599,12 @@ public class PlayerActor extends AnimatedPhysicsActor {
 	 * */
 	private void CreateFeelers(){
 		this.feelers.clear();
+		
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			Gdx.app.error("PlayerActor", "Cannot create feelers: physics body is null");
+			return;
+		}
 	
 		Vector2 agent_position = this.body.getPosition().cpy();
 		Vector2 agent_heading = this.body.getLinearVelocity().cpy().nor();
@@ -882,7 +949,8 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			
 			// Apply damage to sync with external system
 			if (newHealth < currentHealth) {
-				this.healthComponent.takeDamage(currentHealth - newHealth, 0.0f);
+				int damageAmount = currentHealth - newHealth;
+				this.healthComponent.takeDamage(damageAmount, 0.0f);
 			}
 		}
 	}
@@ -915,5 +983,59 @@ public class PlayerActor extends AnimatedPhysicsActor {
 			Gdx.app.log("EnemyCleanup", "Force disposing enemy physics body");
 		}
 		this.dispose();
+	}
+	
+	/**
+	 * Recreates the physics body for this actor.
+	 * This is used when reusing pooled enemies that had their physics bodies disposed.
+	 */
+	public void recreatePhysicsBody(com.badlogic.gdx.physics.box2d.World world, float x, float y) {
+		// Only recreate if body is null
+		if (this.body != null) {
+			return;
+		}
+		
+		com.badlogic.gdx.Gdx.app.log("PlayerActor", "Recreating physics body at position (" + x + ", " + y + ")");
+		
+		// Recreate the physics body using the same logic as AnimatedPhysicsActor constructor
+		com.badlogic.gdx.physics.box2d.BodyDef bodyDef = new com.badlogic.gdx.physics.box2d.BodyDef();
+		bodyDef.type = com.badlogic.gdx.physics.box2d.BodyDef.BodyType.DynamicBody;
+		bodyDef.position.set(x, y);
+
+		// Body shape - use the actual texture dimensions and scale from AnimatedPhysicsActor
+		com.badlogic.gdx.physics.box2d.PolygonShape shape = new com.badlogic.gdx.physics.box2d.PolygonShape();
+		// Use the same calculation as AnimatedPhysicsActor constructor: (textureWidth/2.f * scale)/PPM
+		shape.setAsBox((this.textureWidth/2.f * this.scale)/com.plv.uberplayground.config.Configuration.PPM, 
+					   (this.textureHeight/2.f * this.scale)/com.plv.uberplayground.config.Configuration.PPM);
+
+		// Body fixture
+		com.badlogic.gdx.physics.box2d.FixtureDef fixtureDef = new com.badlogic.gdx.physics.box2d.FixtureDef();
+		fixtureDef.shape = shape;
+		fixtureDef.density = 0.1f;
+
+		this.body = world.createBody(bodyDef);
+		this.body.createFixture(fixtureDef);
+		this.body.setUserData(this);
+
+		// Set collision category for enemy if this is an enemy
+		if (this.isEnemy) {
+			com.badlogic.gdx.physics.box2d.Filter filter = new com.badlogic.gdx.physics.box2d.Filter();
+			filter.categoryBits = com.plv.uberplayground.config.Configuration.EntityCategory.ENEMY_SHIP.getValue();
+			filter.maskBits = (short) (com.plv.uberplayground.config.Configuration.EntityCategory.BOUNDARY.getValue() | 
+									   com.plv.uberplayground.config.Configuration.EntityCategory.PLAYER_SHIP.getValue() | 
+									   com.plv.uberplayground.config.Configuration.EntityCategory.PROJECTILE.getValue());
+			this.body.getFixtureList().get(0).setFilterData(filter);
+		}
+
+		shape.dispose();
+	}
+	
+	/**
+	 * Sets the physics body to null after it has been destroyed.
+	 * This is used by the enemy pool system when destroying bodies for pooling.
+	 * IMPORTANT: Only call this AFTER the body has been destroyed with world.destroyBody()
+	 */
+	public void clearPhysicsBodyReference() {
+		this.body = null;
 	}
 }

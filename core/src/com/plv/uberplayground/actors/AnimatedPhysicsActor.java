@@ -88,6 +88,12 @@ public class AnimatedPhysicsActor extends Actor {
 
 	@Override
 	public void draw(Batch batch, float alpha) {
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			// Skip drawing if physics body is null
+			return;
+		}
+		
 		if(this.pe != null) {
 			this.pe.draw(batch);
 		}
@@ -109,6 +115,11 @@ public class AnimatedPhysicsActor extends Actor {
 	@Override
 	public void act(float delta) {
 		super.act(delta);
+
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			return;
+		}
 
 		if(this.pe != null) {
 			this.pe.setPosition(this.body.getPosition().x + this.particlesOffsetX, this.body.getPosition().y + this.particlesOffsetY);
@@ -142,10 +153,20 @@ public class AnimatedPhysicsActor extends Actor {
 	}
 
 	public void setLinearVelocity(float vX, float vY) {
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			Gdx.app.error("AnimatedPhysicsActor", "Cannot set linear velocity: physics body is null");
+			return;
+		}
 		this.body.setLinearVelocity(vX, vY);
 	}
 
 	public Vector2 getLinearVelocity(){
+		// Add null check to prevent crashes
+		if (this.body == null) {
+			Gdx.app.error("AnimatedPhysicsActor", "Cannot get linear velocity: physics body is null");
+			return new Vector2(); // Return zero vector
+		}
 		return this.body.getLinearVelocity();
 	}
 

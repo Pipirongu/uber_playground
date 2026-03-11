@@ -19,7 +19,7 @@ public class ProjectilePool {
         
         // Pre-create pool of Projectile instances with updated speed
         for (int i = 0; i < POOL_SIZE; i++) {
-            Projectile projectile = new Projectile("agent", world, 1, 1);
+            Projectile projectile = new Projectile("spawn_unit", world, 1, 1);
             pool.add(projectile);
         }
     }
@@ -125,7 +125,7 @@ public class ProjectilePool {
         
         // Recreate pool with fresh projectile instances
         for (int i = 0; i < POOL_SIZE; i++) {
-            Projectile projectile = new Projectile("agent", world, 1, 1);
+            Projectile projectile = new Projectile("spawn_unit", world, 1, 1);
             pool.add(projectile);
         }
     }

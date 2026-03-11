@@ -16,7 +16,7 @@ public class SpawnConfiguration {
     public static final int MAX_SPAWN_ATTEMPTS = 10;
     
     /** Maximum number of active enemies allowed in the game */
-    public static final int MAX_ENEMIES = 10;
+    public static final int MAX_ENEMIES = 50;
     
     /** Initial health points for newly spawned enemies */
     public static final int ENEMY_HEALTH = 100;

@@ -5,6 +5,7 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -32,9 +33,15 @@ import com.plv.uberplayground.config.Configuration;
 import com.plv.uberplayground.enemies.EnemyManager;
 import com.plv.uberplayground.enemies.EnemySpawner;
 import com.plv.uberplayground.enemies.HealthSystem;
+import com.plv.uberplayground.enemies.DynamicSpawnController;
+import com.plv.uberplayground.enemies.EnhancedSpawnConfig;
+import com.plv.uberplayground.game.GameStateManager;
 import com.plv.uberplayground.inputhandlers.GameStageInputHandler;
 import com.plv.uberplayground.inputhandlers.PlayerShipInputHandler;
-import com.plv.uberplayground.screens.MainMenuScreen;
+import com.plv.uberplayground.screens.HighScoreScreen;
+import com.plv.uberplayground.scoring.ScoreTracker;
+import com.plv.uberplayground.scoring.ScoreDisplay;
+import com.plv.uberplayground.scoring.HighScoreManager;
 
 public class GameScreen implements Screen {
 	private World world;
@@ -66,6 +73,16 @@ public class GameScreen implements Screen {
 	private HealthSystem healthSystem;
 	private EnemyManager enemyManager;
 	private EnemySpawner enemySpawner;
+	
+	// Game state management
+	private GameStateManager gameStateManager;
+	
+	// Dynamic spawning system
+	private DynamicSpawnController dynamicSpawnController;
+	
+	// Score tracking system
+	private ScoreTracker scoreTracker;
+	private ScoreDisplay scoreDisplay;
 	
 	// Deferred physics body cleanup to prevent Box2D crashes
 	private Array<PlayerActor> enemiesToDisposePhysics = new Array<>();
@@ -196,11 +213,50 @@ public class GameScreen implements Screen {
 		// Create ProjectilePool
 		this.projectilePool = new ProjectilePool(this.world, this.gameStage);
 		
+		// Initialize game state management
+		this.gameStateManager = new GameStateManager();
+		
+		// Initialize score tracking system first (Requirements 1.2, 1.3, 1.4)
+		this.scoreTracker = new ScoreTracker();
+		// Explicitly reset score for new game session (Requirements 4.3)
+		this.scoreTracker.resetScore();
+		this.scoreDisplay = new ScoreDisplay(new com.badlogic.gdx.graphics.g2d.BitmapFont(), VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+		this.scoreTracker.addScoreListener(this.scoreDisplay);
+		
 		// Initialize enemy system components
 		this.healthSystem = new HealthSystem();
 		this.enemyManager = new EnemyManager(this.healthSystem);
 		this.enemyManager.setGameScreen(this); // Set GameScreen reference for deferred physics cleanup
+		this.enemyManager.setScoreTracker(this.scoreTracker); // Set ScoreTracker for enemy kill events
 		this.enemySpawner = new EnemySpawner(this.world, this.gameStage, this.enemyManager, this.playerShip, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+		
+		// Initialize dynamic spawning system
+		try {
+			// Create enhanced spawn configuration with defaults
+			EnhancedSpawnConfig spawnConfig = new EnhancedSpawnConfig();
+			spawnConfig.applyDefaults();
+			
+			this.dynamicSpawnController = new DynamicSpawnController(
+				this.enemySpawner, 
+				this.gameStateManager, 
+				spawnConfig
+			);
+			
+			// Wire the dynamic spawn controller to the enemy spawner
+			this.enemySpawner.setDynamicSpawnController(this.dynamicSpawnController);
+			
+			// Add the dynamic spawn controller as a game state listener
+			this.gameStateManager.addListener(this.dynamicSpawnController);
+			
+			Gdx.app.log("DynamicSpawning", "Dynamic spawn controller initialized successfully");
+			
+			// Validate system integration
+			if (!validateSystemIntegration()) {
+				throw new RuntimeException("System integration validation failed");
+			}
+		} catch (Exception e) {
+			handleDynamicSpawnFailure("initialization", e);
+		}
 		
 		// Initialize behavior label rendering system
 		com.plv.uberplayground.enemies.EnemyBehaviorLabel.initialize();
@@ -211,6 +267,9 @@ public class GameScreen implements Screen {
 		// Initialize game state
 		this.isGameOver = false;
 		this.gameOverTimer = 0.0f;
+		
+		// Start the game in PLAYING state
+		this.gameStateManager.startNewGame();
 
 		// InputMultiplexer - HUD stage first, then PlayerShip input, then Actor/Game stage
 		InputMultiplexer multiplexer = new InputMultiplexer();
@@ -232,8 +291,20 @@ public class GameScreen implements Screen {
 		
 		Configuration.ElapsedTime += delta;
 		
+		// Update game state manager
+		gameStateManager.update(delta);
+		
 		// Only update game systems if not in game over state
-		if (!isGameOver) {
+		if (!isGameOver && gameStateManager.isGameplayActive()) {
+			// Update dynamic spawn controller first
+			if (dynamicSpawnController != null) {
+				try {
+					dynamicSpawnController.update(delta);
+				} catch (Exception e) {
+					handleDynamicSpawnFailure("update", e);
+				}
+			}
+			
 			// Update player ship input before physics step
 			this.playerShipInputHandler.update();
 			
@@ -279,10 +350,21 @@ public class GameScreen implements Screen {
 			gameOverTimer -= delta;
 			if (gameOverTimer <= 0) {
 				try {
+					// Get current score and save it to high scores (Requirement 2.1)
+					int finalScore = scoreTracker != null ? scoreTracker.getCurrentScore() : 0;
+					
+					// Save score to high score manager
+					if (finalScore > 0) {
+						com.plv.uberplayground.scoring.HighScoreManager highScoreManager = 
+							new com.plv.uberplayground.scoring.HighScoreManager();
+						highScoreManager.saveScore(finalScore);
+						Gdx.app.log("Score", "Final score saved: " + finalScore);
+					}
+					
 					// Dispose resources before transitioning
 					dispose();
-					// Transition to MainMenuScreen
-					app.setScreen(new MainMenuScreen(app));
+					// Transition to HighScoreScreen with current score (Requirement 3.1, 3.5)
+					app.setScreen(new HighScoreScreen(app, finalScore, finalScore > 0));
 					return;
 				} catch (Exception e) {
 					Gdx.app.error("GameOver", "Error during screen transition: " + e.getMessage());
@@ -302,11 +384,22 @@ public class GameScreen implements Screen {
 
 		this.hudStage.draw();
 		this.gameStage.draw();
+		
+		// Render score display on top of everything (Requirements 1.2, 1.4)
+		if (scoreDisplay != null) {
+			SpriteBatch hudBatch = (SpriteBatch) hudStage.getBatch();
+			hudBatch.begin();
+			scoreDisplay.render(hudBatch);
+			hudBatch.end();
+		}
 
-		this.debugRenderer.render(this.world, this.gameStage.getViewport().getCamera().combined);
+		// Only render debug physics bodies when debug mode is enabled
+		if (Configuration.isDebug) {
+			this.debugRenderer.render(this.world, this.gameStage.getViewport().getCamera().combined);
+		}
 		
 		// End performance monitoring and log if performance is poor
-		float frameTime = com.plv.uberplayground.enemies.PerformanceOptimizer.endFrame();
+		float frameTime = com.plv.uberplayground.enemies.PerformanceOptimizer.endFrame(delta);
 		if (!com.plv.uberplayground.enemies.PerformanceOptimizer.isPerformanceAcceptable()) {
 			// Log performance warning every 5 seconds to avoid spam
 			if (Configuration.ElapsedTime % 5.0f < delta) {
@@ -329,12 +422,32 @@ public class GameScreen implements Screen {
 
 	@Override
 	public void pause() {
-
+		// Pause the game state
+		gameStateManager.pauseGame();
+		
+		// Pause dynamic spawning
+		if (dynamicSpawnController != null) {
+			try {
+				dynamicSpawnController.pauseScaling();
+			} catch (Exception e) {
+				handleDynamicSpawnFailure("pause", e);
+			}
+		}
 	}
 
 	@Override
 	public void resume() {
-
+		// Resume the game state
+		gameStateManager.resumeGame();
+		
+		// Resume dynamic spawning
+		if (dynamicSpawnController != null) {
+			try {
+				dynamicSpawnController.resumeScaling();
+			} catch (Exception e) {
+				handleDynamicSpawnFailure("resume", e);
+			}
+		}
 	}
 
 	@Override
@@ -392,6 +505,24 @@ public class GameScreen implements Screen {
 			}
 		} catch (Exception e) {
 			Gdx.app.error("Dispose", "Error disposing hud stage: " + e.getMessage());
+		}
+		
+		// Clean up game state manager
+		try {
+			if (this.gameStateManager != null) {
+				this.gameStateManager.clearListeners();
+			}
+		} catch (Exception e) {
+			Gdx.app.error("Dispose", "Error disposing game state manager: " + e.getMessage());
+		}
+		
+		// Clean up dynamic spawn controller
+		try {
+			if (this.dynamicSpawnController != null) {
+				this.dynamicSpawnController.dispose();
+			}
+		} catch (Exception e) {
+			Gdx.app.error("Dispose", "Error disposing dynamic spawn controller: " + e.getMessage());
 		}
 	}
 
@@ -462,10 +593,12 @@ public class GameScreen implements Screen {
 		return null;
 	}
 	
-	// Trigger game over and schedule transition to MainMenuScreen
+	// Trigger game over and schedule transition to HighScoreScreen
 	public void triggerGameOver() {
 		if (!isGameOver && !gameOverTriggered) {
 			gameOverTriggered = true;
+			// Update game state to GAME_OVER
+			gameStateManager.endGame();
 			Gdx.app.log("GameOver", "Game Over collision detected - will process after physics step");
 		}
 	}
@@ -502,6 +635,96 @@ public class GameScreen implements Screen {
 			enemiesToDisposePhysics.add(enemy);
 			Gdx.app.log("PhysicsCleanup", "Queued enemy for deferred physics cleanup");
 		}
+	}
+	
+	/**
+	 * Gets the GameStateManager instance for external access.
+	 * @return The GameStateManager instance
+	 */
+	public GameStateManager getGameStateManager() {
+		return gameStateManager;
+	}
+	
+	/**
+	 * Gets the DynamicSpawnController instance for external access.
+	 * @return The DynamicSpawnController instance, or null if not initialized
+	 */
+	public DynamicSpawnController getDynamicSpawnController() {
+		return dynamicSpawnController;
+	}
+	
+	/**
+	 * Handles dynamic spawn controller failures by falling back to static spawning.
+	 * This ensures the game continues to function even if dynamic spawning fails.
+	 */
+	private void handleDynamicSpawnFailure(String context, Exception e) {
+		Gdx.app.error("DynamicSpawning", "Dynamic spawn controller failure in " + context + ": " + e.getMessage());
+		
+		// Disable dynamic spawning and fall back to static spawning
+		if (dynamicSpawnController != null) {
+			try {
+				dynamicSpawnController.dispose();
+			} catch (Exception disposeError) {
+				Gdx.app.error("DynamicSpawning", "Error disposing failed dynamic spawn controller: " + disposeError.getMessage());
+			}
+			dynamicSpawnController = null;
+		}
+		
+		// Ensure enemy spawner continues with static spawning
+		if (enemySpawner != null) {
+			try {
+				enemySpawner.setDynamicSpawnController(null);
+				enemySpawner.setSpawningEnabled(true);
+				Gdx.app.log("DynamicSpawning", "Fallback to static spawning enabled");
+			} catch (Exception fallbackError) {
+				Gdx.app.error("DynamicSpawning", "Error setting up static spawning fallback: " + fallbackError.getMessage());
+			}
+		}
+	}
+	
+	/**
+	 * Validates the complete system integration and reports any issues.
+	 * This method can be called during initialization or runtime to check system health.
+	 * @return true if all systems are properly integrated, false otherwise
+	 */
+	public boolean validateSystemIntegration() {
+		boolean isValid = true;
+		
+		// Check core components
+		if (gameStateManager == null) {
+			Gdx.app.error("SystemValidation", "GameStateManager is null");
+			isValid = false;
+		}
+		
+		if (enemySpawner == null) {
+			Gdx.app.error("SystemValidation", "EnemySpawner is null");
+			isValid = false;
+		}
+		
+		if (enemyManager == null) {
+			Gdx.app.error("SystemValidation", "EnemyManager is null");
+			isValid = false;
+		}
+		
+		// Check dynamic spawning integration (optional)
+		if (dynamicSpawnController != null) {
+			if (enemySpawner.getDynamicSpawnController() != dynamicSpawnController) {
+				Gdx.app.error("SystemValidation", "DynamicSpawnController not properly wired to EnemySpawner");
+				isValid = false;
+			}
+		}
+		
+		// Check game state listener registration
+		if (dynamicSpawnController != null && gameStateManager != null) {
+			// Note: We can't directly check listener registration without exposing internal state
+			// This would require additional methods in GameStateManager if needed
+		}
+		
+		if (isValid) {
+			Gdx.app.log("SystemValidation", "All systems properly integrated");
+		}
+		
+		return isValid;
 	}
 	private void processGameOverTrigger() {
 		if (gameOverTriggered && !isGameOver) {
@@ -549,6 +772,24 @@ public class GameScreen implements Screen {
 			gameOverTimer = 0.0f;
 			gameOverTriggered = false;
 			
+			// Reset game state manager for new game
+			gameStateManager.startNewGame();
+			
+			// Reset score tracker for new game (Requirement 4.3)
+			if (scoreTracker != null) {
+				scoreTracker.resetScore();
+			}
+			
+			// Reset dynamic spawn controller for new game
+			if (dynamicSpawnController != null) {
+				try {
+					dynamicSpawnController.resetForNewGame();
+					Gdx.app.log("GameReset", "Dynamic spawn controller reset for new game");
+				} catch (Exception e) {
+					handleDynamicSpawnFailure("reset", e);
+				}
+			}
+			
 			// Clear all enemies and reset enemy system
 			if (enemyManager != null) {
 				enemyManager.clearAllEnemies();
@@ -584,7 +825,7 @@ public class GameScreen implements Screen {
 			// If reset fails, force transition to main menu
 			try {
 				dispose();
-				app.setScreen(new MainMenuScreen(app));
+				app.setScreen(new HighScoreScreen(app));
 			} catch (Exception e2) {
 				Gdx.app.error("GameReset", "Critical error, forcing exit: " + e2.getMessage());
 				Gdx.app.exit();

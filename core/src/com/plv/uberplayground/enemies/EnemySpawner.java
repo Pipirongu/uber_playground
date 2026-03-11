@@ -11,11 +11,18 @@ import com.plv.uberplayground.actors.PlayerShip;
  * Manages the creation and placement of new enemy entities with safe spawning mechanics.
  * 
  * The EnemySpawner provides:
- * - Timed enemy spawning every 5 seconds during active gameplay
+ * - Dynamic enemy spawning with configurable intervals via DynamicSpawnController
+ * - Backward compatibility with fixed 5-second intervals when no dynamic controller is set
  * - Safe distance validation (200-pixel radius from player)
  * - Spawn location collision detection and retry logic
- * - Maximum enemy count enforcement (10 enemies)
+ * - Maximum enemy count enforcement (50 enemies)
  * - Random behavior assignment during spawning
+ * - Integration with enhanced enemy object pooling
+ * 
+ * Dynamic Spawning Integration:
+ * - When a DynamicSpawnController is set and active, spawn intervals are dynamically calculated
+ * - Falls back to manual or default intervals when dynamic control is not available
+ * - Maintains full backward compatibility with existing fixed-interval spawning
  * 
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2
  */
@@ -27,9 +34,16 @@ public class EnemySpawner {
     private final EnemyManager enemyManager;
     private final PlayerShip playerShip;
     
+    // Enhanced enemy object pooling
+    private final EnemyPool enemyPool;
+    
+    // Dynamic spawn control
+    private DynamicSpawnController dynamicSpawnController;
+    
     // Spawn timing
     private float spawnTimer;
     private boolean spawningEnabled;
+    private float currentSpawnInterval;
     
     // Game boundaries for spawn location validation
     private final float gameWidth;
@@ -64,8 +78,12 @@ public class EnemySpawner {
         this.gameHeight = gameHeight;
         this.borderSize = 50.0f; // Safe border from edges
         
+        // Initialize enhanced enemy object pool
+        this.enemyPool = new EnemyPool(world, gameStage);
+        
         this.spawnTimer = 0.0f;
         this.spawningEnabled = true;
+        this.currentSpawnInterval = SpawnConfiguration.SPAWN_INTERVAL; // Default to fixed interval
         this.existingEntities = new Array<>();
         this.recentSpawnLocations = new Array<>();
     }
@@ -81,14 +99,31 @@ public class EnemySpawner {
             return;
         }
         
+        // Update enemy pool lifecycle
+        enemyPool.updateAll(delta);
+        
         // Update spawn timer
         spawnTimer += delta;
         
+        // Get current spawn interval (dynamic or fixed)
+        float activeSpawnInterval = getCurrentActiveSpawnInterval();
+        
         // Check if it's time to spawn and if we can spawn
-        if (spawnTimer >= SpawnConfiguration.SPAWN_INTERVAL && canSpawn()) {
+        if (spawnTimer >= activeSpawnInterval && canSpawn()) {
             attemptSpawn();
             spawnTimer = 0.0f; // Reset timer regardless of spawn success
         }
+    }
+    
+    /**
+     * Gets the current active spawn interval, prioritizing dynamic control if available.
+     * @return Current spawn interval in seconds
+     */
+    private float getCurrentActiveSpawnInterval() {
+        if (dynamicSpawnController != null && dynamicSpawnController.isActive()) {
+            return dynamicSpawnController.getCurrentTargetInterval();
+        }
+        return currentSpawnInterval; // Fall back to current interval (default or manually set)
     }
     
     /**
@@ -104,7 +139,7 @@ public class EnemySpawner {
      * @return true if spawning can occur, false otherwise
      */
     public boolean canSpawn() {
-        return spawningEnabled && !enemyManager.isAtMaxCapacity();
+        return spawningEnabled && !enemyManager.isAtMaxCapacity() && enemyPool.hasCapacity();
     }
     
     /**
@@ -301,16 +336,21 @@ public class EnemySpawner {
     }
     
     /**
-     * Creates a new enemy at the specified location with random behavior assignment.
+     * Creates a new enemy at the specified location using object pooling.
+     * Enhanced to use EnemyPool for efficient object reuse and reduced garbage collection.
      * @param location The spawn location for the new enemy
      */
     private void createEnemyAtLocation(Vector2 location) {
-        // Create new enemy PlayerActor
-        PlayerActor enemy = new PlayerActor("agent", world, location.x, location.y, 5, 2, 50.0f);
-        enemy.setIdleAnimFrameDuration(0.05f);
+        // Obtain enemy from pool instead of creating new instance
+        PlayerActor enemy = enemyPool.obtain(location);
         
-        // Configure as enemy and assign random behavior
-        enemy.setIsEnemy(true);
+        if (enemy == null) {
+            // Pool exhausted - this shouldn't happen with proper capacity checking
+            System.err.println("Warning: Enemy pool exhausted, cannot spawn enemy");
+            return;
+        }
+        
+        // Assign random behavior
         assignRandomBehavior(enemy);
         
         // Set initial player target for behaviors
@@ -319,15 +359,12 @@ public class EnemySpawner {
             enemy.setPlayerTarget(playerPosition);
         }
         
-        // Add to game stage
-        gameStage.addActor(enemy);
-        
         // Register with enemy manager
         boolean registered = enemyManager.addEnemy(enemy);
         
         if (!registered) {
-            // If registration failed, remove from stage and cleanup
-            enemy.remove(); // This will now properly dispose of the physics body
+            // If registration failed, return enemy to pool
+            enemyPool.free(enemy);
         }
     }
     
@@ -488,5 +525,95 @@ public class EnemySpawner {
         }
         
         return false;
+    }
+    
+    // Enhanced enemy pool management methods
+    
+    /**
+     * Gets the enemy pool for direct access to pool operations.
+     * @return The enemy pool instance
+     */
+    public EnemyPool getEnemyPool() {
+        return enemyPool;
+    }
+    
+    /**
+     * Gets pool utilization statistics for monitoring.
+     * @return Formatted string with pool performance metrics
+     */
+    public String getPoolStats() {
+        return enemyPool.getPerformanceStats();
+    }
+    
+    /**
+     * Gets the current pool utilization as a percentage.
+     * @return Pool utilization (0.0 to 1.0)
+     */
+    public float getPoolUtilization() {
+        return enemyPool.getUtilization();
+    }
+    
+    /**
+     * Clears all active enemies from the pool.
+     * Useful for game over or level transitions.
+     */
+    public void clearAllEnemies() {
+        enemyPool.clearAllActive();
+    }
+    
+    /**
+     * Disposes the enemy pool and all resources.
+     * Should be called when shutting down the spawner.
+     */
+    public void dispose() {
+        enemyPool.dispose();
+    }
+    
+    // Dynamic spawn controller integration methods
+    
+    /**
+     * Sets the dynamic spawn controller for dynamic spawn rate management.
+     * When set, the spawner will use dynamic intervals from the controller.
+     * 
+     * @param controller The dynamic spawn controller, or null to disable dynamic control
+     */
+    public void setDynamicSpawnController(DynamicSpawnController controller) {
+        this.dynamicSpawnController = controller;
+    }
+    
+    /**
+     * Gets the current dynamic spawn controller.
+     * @return The dynamic spawn controller, or null if not set
+     */
+    public DynamicSpawnController getDynamicSpawnController() {
+        return dynamicSpawnController;
+    }
+    
+    /**
+     * Sets a manual spawn interval for backward compatibility.
+     * This interval is used when no dynamic controller is active.
+     * 
+     * @param interval The spawn interval in seconds
+     */
+    public void setSpawnInterval(float interval) {
+        if (interval > 0) {
+            this.currentSpawnInterval = interval;
+        }
+    }
+    
+    /**
+     * Gets the current manual spawn interval.
+     * @return The current spawn interval in seconds
+     */
+    public float getSpawnInterval() {
+        return currentSpawnInterval;
+    }
+    
+    /**
+     * Checks if dynamic spawn control is currently active.
+     * @return true if dynamic controller is set and active, false otherwise
+     */
+    public boolean isDynamicSpawnActive() {
+        return dynamicSpawnController != null && dynamicSpawnController.isActive();
     }
 }

@@ -152,4 +152,38 @@ class EnemyManagerTest {
             assertNotNull(result3);
         });
     }
+    
+    @Test
+    @DisplayName("Should maintain accurate count tracking during operations")
+    void shouldMaintainAccurateCountTrackingDuringOperations() {
+        // Given
+        int initialCount = enemyManager.getEnemyCount();
+        
+        // When - perform multiple count queries
+        int count1 = enemyManager.getEnemyCount();
+        int count2 = enemyManager.getEnemyCount();
+        int count3 = enemyManager.getEnemyCount();
+        
+        // Then - all counts should be consistent
+        assertEquals(initialCount, count1);
+        assertEquals(initialCount, count2);
+        assertEquals(initialCount, count3);
+    }
+    
+    @Test
+    @DisplayName("Should validate enhanced system integrity")
+    void shouldValidateEnhancedSystemIntegrity() {
+        // When
+        boolean isValid = enemyManager.validateSystemIntegrity();
+        
+        // Then
+        assertTrue(isValid);
+        
+        // Additional validation after operations
+        enemyManager.clearAllEnemies();
+        assertTrue(enemyManager.validateSystemIntegrity());
+        
+        enemyManager.refreshEnemyCount();
+        assertTrue(enemyManager.validateSystemIntegrity());
+    }
 }

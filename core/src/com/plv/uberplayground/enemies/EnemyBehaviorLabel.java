@@ -100,6 +100,12 @@ public class EnemyBehaviorLabel {
     public void render(ShapeRenderer shapeRenderer, Camera camera, Vector2 enemyPosition, 
                       SteeringBehaviorType behaviorType, boolean forceRender) {
         
+        // Early return for pooled enemies at (0,0) - prevents visual artifacts
+        boolean isPooledPosition = (enemyPosition.x == 0 && enemyPosition.y == 0);
+        if (isPooledPosition) {
+            return;
+        }
+        
         if (behaviorType == null) {
             return;
         }
